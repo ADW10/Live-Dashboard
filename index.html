@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Live Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/dark.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<!-- Lark (international) H5 JSSDK — only used in online mode. Verify the exact version URL in the Lark developer docs if login fails. -->
+<script src="https://lf-scm-cdn.larksuite.com/lark/op/h5-js-sdk-1.5.34.js"></script>
+<style>
+:root{
+  --bg:#000000; --panel:#0c0e0a; --panel2:#121509; --line:#22271a;
+  --txt:#f1f5e9; --muted:#8b9682; --faint:#5c6553;
+  --neon:#c7f53d; --neon-2:#d8ff5e; --neon-dim:#4a5a1e; --cyan:#5ec8ff;
+  --up:#c7f53d; --down:#ff5a5f; --risk:#ff8a3d; --flat:#7a8570;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.45}
+::-webkit-scrollbar{height:9px;width:9px}::-webkit-scrollbar-thumb{background:#20261a;border-radius:6px}
+.wrap{max-width:1340px;margin:0 auto;padding:22px 24px 90px}
+a{color:var(--neon)}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.title{font-weight:700;font-size:20px;letter-spacing:2px}
+.title .g{color:var(--neon)}
+.subt{color:var(--muted);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+.spacer{flex:1}
+.pill{font-size:11px;padding:4px 10px;border-radius:20px;background:#0e1207;border:1px solid var(--line);color:var(--muted);letter-spacing:.5px}
+select,input,button,.btn{font-family:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;transition:.15s;outline:none}
+input{cursor:text}
+select:hover,button:hover,.btn:hover{border-color:var(--neon-dim)}
+input:focus,select:focus{border-color:var(--neon)}
+input:disabled{opacity:.55;cursor:not-allowed}
+.btn.primary{background:var(--neon);color:#12160a;border-color:var(--neon);font-weight:700;letter-spacing:.3px}
+.btn.primary:hover{background:var(--neon-2)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:5px 9px;font-size:12px}
+label.lb{font-size:11px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+.sec{margin-top:26px}
+.sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.sec-h .no{font-size:11px;font-weight:700;color:#12160a;background:var(--neon);border-radius:5px;padding:2px 7px;letter-spacing:1px}
+.sec-h h2{margin:0;font-size:15px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase}
+.sec-h .hint{color:var(--muted);font-size:11.5px;font-weight:400}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.goalbar{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end}
+.goalbar .gitem{min-width:210px}
+.prog{height:7px;background:#161a0e;border-radius:6px;overflow:hidden;margin-top:7px}
+.prog>span{display:block;height:100%;background:linear-gradient(90deg,var(--neon-dim),var(--neon));border-radius:6px}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--muted);background:#080a05;cursor:pointer;transition:.15s}
+.drop.hot{border-color:var(--neon);color:var(--txt);background:#10160a}
+.drop b{color:var(--neon)}
+.pending{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:14px}
+.pcard{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px 13px}
+.pcard .ph{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:9px}
+.pcard .ph .d{font-weight:600}
+.pcard .rowm{display:flex;gap:10px;margin-top:9px}
+.pcard .rowm .f{flex:1}
+.pcard input{width:100%;margin-top:3px;padding:6px 8px}
+.pcard .x{color:var(--faint);cursor:pointer;font-size:16px;line-height:1}
+.mini{font-size:11px;color:var(--muted)}
+.warnc{color:var(--risk)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 15px;position:relative;overflow:hidden}
+.card.hi{border-color:var(--neon-dim)}
+.card .k{color:var(--muted);font-size:11px;letter-spacing:.6px;text-transform:uppercase;display:flex;justify-content:space-between;gap:6px;align-items:center}
+.card .v{font-size:24px;font-weight:700;margin-top:7px;letter-spacing:.3px}
+.card .s{font-size:11px;color:var(--faint);margin-top:3px}
+.delta{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;letter-spacing:.3px}
+.delta.up{color:var(--up);background:#1c2708}
+.delta.down{color:var(--down);background:#2a1113}
+.delta.flat{color:var(--flat);background:#171b10}
+.delta.risk{color:var(--risk);background:#2a1808}
+.qs{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:820px){.qs{grid-template-columns:1fr}.two{grid-template-columns:1fr!important}}
+.qs .col{padding:4px 16px}
+.qs .col:first-child{border-right:1px solid var(--line)}
+.qs .ch{font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700;margin:2px 0 10px}
+.qs .ch.good{color:var(--neon)} .qs .ch.bad{color:var(--down)}
+.qs .r{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #14180e}
+.qs .r .nm{color:var(--txt);font-size:13px}
+.qs .vs{color:var(--faint);font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.dot.good{background:var(--neon)} .dot.bad{background:var(--down)} .dot.risk{background:var(--risk)}
+.emptyc{color:var(--faint);font-size:12px;padding:14px 4px}
+/* vertical funnel */
+.fnl{max-width:900px;margin:2px auto 0;display:flex;flex-direction:column;align-items:center}
+.fnl-row{border-radius:11px;padding:11px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px;border:1px solid var(--line);border-left:3px solid var(--neon)}
+.fnl-row .l .t{font-weight:700;font-size:14px;letter-spacing:.3px}
+.fnl-row .l .c{font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:.2px}
+.fnl-row .r{text-align:right;white-space:nowrap;display:flex;align-items:center;gap:12px}
+.fnl-row .r .val{font-size:20px;font-weight:700}
+.fnl-arrow{color:#33401e;font-size:12px;line-height:1;margin:5px 0}
+.pc .spark{height:46px;margin-top:10px}
+.clsgrp{border:1px solid var(--line);border-radius:12px;padding:12px 15px;margin-bottom:12px;background:var(--panel2)}
+.clsgrp h4{margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.clshero h4{color:var(--neon)} .clsdec h4{color:var(--down)} .clspot h4{color:var(--cyan)}
+.clsrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #14180e;font-size:13px}
+.clsrow:last-child{border-bottom:none}
+.clsrow .pn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clsrow .pv{color:var(--muted);font-size:12px;white-space:nowrap}
+.tg{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px}
+.tg.hot{color:#12160a;background:var(--neon)} .tg.dec{color:#fff;background:#7a2226} .tg.hero{color:var(--neon);border:1px solid var(--neon-dim)}
+.arrowg{color:var(--neon)} .arrowr{color:var(--down)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{padding:8px 9px;text-align:right;white-space:nowrap;border-bottom:1px solid #171b10}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}
+thead th{color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;background:var(--panel);z-index:2}
+tbody tr:hover td{background:#0f130a}
+.scroll{overflow:auto;max-height:470px;border-radius:9px}
+.tup{color:var(--up)} .tdown{color:var(--down)} .tflat{color:var(--faint)}
+.d-badge{font-size:10px;margin-left:5px}
+.chartbox{height:250px;position:relative}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.prodcards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+@media(max-width:820px){.prodcards{grid-template-columns:1fr}}
+.pc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+.pc .rk{font-size:10px;letter-spacing:1px;color:var(--neon);text-transform:uppercase;font-weight:700}
+.pc .nm{font-size:13px;font-weight:600;margin:5px 0;line-height:1.3;min-height:34px}
+.pc .g{font-size:18px;font-weight:700}
+.pc .bar{height:6px;background:#161a0e;border-radius:5px;margin-top:8px;overflow:hidden}
+.pc .bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--neon-dim),var(--neon))}
+.foot{color:var(--faint);font-size:11px;margin-top:30px;line-height:1.8;border-top:1px solid var(--line);padding-top:14px}
+.toast{position:fixed;right:22px;bottom:22px;background:var(--panel2);border:1px solid var(--neon-dim);border-left:3px solid var(--neon);border-radius:10px;padding:13px 16px;max-width:380px;box-shadow:0 10px 34px #000b;opacity:0;transform:translateY(10px);transition:.25s;z-index:60}
+.toast.show{opacity:1;transform:none}
+.seg{display:inline-flex;background:#0e1207;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:transparent;padding:7px 14px;color:var(--muted);font-size:12.5px;letter-spacing:.4px}
+.seg button.on{background:var(--neon);color:#12160a;font-weight:700}
+.lock{font-size:11px;color:var(--neon);letter-spacing:.4px}
+/* flatpickr neon-on-black theme */
+.flatpickr-calendar{background:#0c0e0a!important;border:1px solid var(--line)!important;box-shadow:0 10px 34px #000b!important}
+.flatpickr-calendar.arrowTop:before,.flatpickr-calendar.arrowTop:after{border-bottom-color:#0c0e0a!important}
+.flatpickr-months .flatpickr-month,.flatpickr-current-month,.flatpickr-weekdays,span.flatpickr-weekday,.flatpickr-months .flatpickr-prev-month,.flatpickr-months .flatpickr-next-month{background:#0c0e0a!important;color:var(--muted)!important;fill:var(--muted)!important}
+.flatpickr-day{color:var(--txt)!important}
+.flatpickr-day:hover{background:#161a0e!important;border-color:#161a0e!important}
+.flatpickr-day.today{border-color:var(--neon-dim)!important}
+.flatpickr-day.selected,.flatpickr-day.startRange,.flatpickr-day.endRange{background:var(--neon)!important;border-color:var(--neon)!important;color:#12160a!important}
+.flatpickr-day.inRange{background:#1c2708!important;border-color:#1c2708!important;box-shadow:-5px 0 0 #1c2708,5px 0 0 #1c2708!important}
+/* auth gate + admin + mode visibility */
+#gate{display:none;position:fixed;inset:0;background:#000;z-index:100;align-items:center;justify-content:center;padding:24px}
+#gate .gatebox{text-align:center;max-width:420px}
+#gate #gateMsg{font-size:13px;line-height:1.7;color:var(--muted)}
+.admin-only{display:none!important}
+body.is-admin .admin-only{display:inline-block!important}
+body.online .offline-only{display:none!important}
+#adminPanel .arow{display:grid;grid-template-columns:1.4fr 2fr 2fr auto;gap:14px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)}
+#adminPanel .arow:last-child{border-bottom:none}
+#adminPanel .ae{font-size:13px;word-break:break-all}
+#adminPanel .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+#adminPanel .chip{font-size:11px;border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+#adminPanel .chip.on{background:var(--neon);color:#12160a;border-color:var(--neon)}
+#adminPanel .chip input{margin:0;accent-color:var(--neon)}
+@media(max-width:820px){#adminPanel .arow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="gatebox"><div class="title" style="font-size:26px;margin-bottom:14px">LIVE <span class="g">DASHBOARD</span></div><div id="gateMsg" class="mini"></div></div></div>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="title">LIVE <span class="g">DASHBOARD</span></div>
+      <div class="subt">TikTok Live Performance</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn sm admin-only" id="adminBtn">Admin</button>
+    <label class="lb">Project</label>
+    <select id="proj"></select>
+    <span class="pill" id="dbstat">—</span>
+  </header>
+
+  <!-- Admin panel (admins only) -->
+  <div id="adminPanel" class="panel" style="display:none;margin-top:14px">
+    <div class="sec-h" style="margin-bottom:10px"><h2>Admin — User Access</h2><span class="hint">Set which projects each person can view / upload to</span></div>
+    <div id="adminUsers"></div>
+  </div>
+
+  <!-- GOAL SETTING -->
+  <div class="sec">
+    <div class="sec-h"><h2>Goal Setting</h2><span class="hint">Enter both goals, then Save. Once saved, locked on the frontend (edit via backend).</span></div>
+    <div class="panel goalbar">
+      <div class="gitem">
+        <label class="lb">Monthly GMV Goal ($)</label>
+        <input id="goalGmv" type="number" style="width:170px;margin-top:5px" placeholder="e.g. 120000"/>
+        <div class="mini" id="gmvProg" style="margin-top:8px"></div>
+        <div class="prog"><span id="gmvBar" style="width:0%"></span></div>
+      </div>
+      <div class="gitem">
+        <label class="lb">Monthly Live Hours Goal</label>
+        <input id="goalHours" type="number" style="width:170px;margin-top:5px" placeholder="e.g. 200"/>
+        <div class="mini" id="hrProg" style="margin-top:8px"></div>
+        <div class="prog"><span id="hrBar" style="width:0%"></span></div>
+      </div>
+      <div class="gitem" style="min-width:auto">
+        <button class="btn primary" id="saveGoals">Save Goals</button>
+        <div class="lock" id="lockNote" style="margin-top:8px;display:none">🔒 Locked</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAILY DATA ENTRY -->
+  <div class="sec">
+    <div class="sec-h"><h2>Daily Data Entry</h2><span class="hint">Upload TT xlsx + enter Ad spend / Avg viewing duration. Multiple sessions per day supported.</span></div>
+    <div class="panel">
+      <div class="drop" id="drop">Drop the <b>LIVE Dashboard xlsx</b> downloaded from TT (multiple allowed), or <b>click to choose</b>
+        <input type="file" id="file" accept=".xlsx" multiple style="display:none"/></div>
+      <div class="pending" id="pending"></div>
+      <div id="commitBar" style="margin-top:14px;display:none">
+        <button class="btn primary" id="commit">Commit to Database</button>
+        <button class="btn ghost sm" id="clearPending">Clear Pending</button>
+        <span class="mini" id="commitHint"></span>
+      </div>
+      <div class="mini offline-only" style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn sm ghost" id="exp">Export Backup</button>
+        <button class="btn sm ghost" id="imp">Import Backup</button>
+        <button class="btn sm ghost" id="clr">Clear Database</button>
+        <input type="file" id="impf" accept=".json" style="display:none"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- 01 TIME RANGE -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">01</span><h2>Time Range</h2></div>
+    <div class="panel" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div class="seg" id="rangeSeg">
+        <button data-r="today">Today</button>
+        <button data-r="l7d" class="on">L7D</button>
+        <button data-r="l30d">L30D</button>
+        <button data-r="custom">Custom</button>
+      </div>
+      <span id="customRange" style="display:none;gap:8px;align-items:center">
+        <input id="cRange" placeholder="Pick a date range" readonly style="width:230px;cursor:pointer"/>
+        <button class="btn sm" id="applyCustom">Apply</button>
+      </span>
+      <span class="spacer"></span>
+      <span class="mini" id="rangeLabel"></span>
+    </div>
+  </div>
+
+  <!-- 02 QUICK SUMMARY -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">02</span><h2>Quick Summary</h2><span class="hint">This period vs prior same-length period · flags moves ≥15% (▲ green = up · ▼ red = attention)</span></div>
+    <div class="panel"><div class="qs" id="qs"></div></div>
+  </div>
+
+  <!-- 03 PROJECT OVERVIEW -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">03</span><h2>Project Overview</h2></div>
+    <div class="cards" id="overviewCards"></div>
+    <div class="two" style="margin-top:14px">
+      <div class="panel"><div class="mini" style="letter-spacing:1px;margin-bottom:10px;color:var(--muted)">MTD GMV</div><div class="chartbox"><canvas id="c_mtd_gmv"></canvas></div></div>
+      <div class="panel"><div class="mini" style="letter-spacing:1px;margin-bottom:10px;color:var(--muted)">MTD HOURLY GMV</div><div class="chartbox"><canvas id="c_mtd_hgmv"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- 04 FUNNEL -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">04</span><h2>Funnel</h2><span class="hint">Selected period · deltas vs prior same-length period · hourly = minutes/60</span></div>
+    <div class="panel">
+      <div class="fnl" id="funnel"></div>
+    </div>
+  </div>
+
+  <!-- 05 PRODUCT -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">05</span><h2>Product Analysis</h2><span class="hint">Selected period</span></div>
+    <div class="panel">
+      <div class="mini" style="letter-spacing:1px;margin-bottom:8px">TOP 3 PRODUCTS — GMV & DAILY TREND</div>
+      <div class="prodcards" id="prodCards" style="margin-bottom:18px"></div>
+      <div class="mini" style="letter-spacing:1px;margin-bottom:8px">PRODUCT MOVEMENT — this period vs prior same-length period (Top-5 presence &gt; half the days)</div>
+      <div id="prodClass"></div>
+    </div>
+  </div>
+
+  <!-- 06 VIEWER SOURCE & FOLLOWER MIX -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">06</span><h2>Viewer Source & Follower Mix</h2><span class="hint">Fixed L30D · day-by-day trend</span></div>
+    <div class="panel" style="margin-bottom:16px"><div class="mini" style="letter-spacing:1px;margin-bottom:10px">VIEWER SOURCE — L30D SHARE %</div><div class="chartbox"><canvas id="c_source"></canvas></div></div>
+    <div class="two">
+      <div class="panel"><div class="mini" style="letter-spacing:1px;margin-bottom:10px">CUSTOMER FOLLOWER MIX — L30D (DAY BY DAY)</div><div class="chartbox"><canvas id="c_custmix"></canvas></div></div>
+      <div class="panel"><div class="mini" style="letter-spacing:1px;margin-bottom:10px">VIEWER FOLLOWER MIX — L30D (DAY BY DAY)</div><div class="chartbox"><canvas id="c_viewmix"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- 07 DAILY BREAKDOWN -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">07</span><h2>Daily Data Breakdown</h2><span class="hint">Fixed MTD · livestreams &lt;1h are stored but excluded here · each day vs previous day</span></div>
+    <div class="panel"><div class="scroll"><table id="dailyTable"></table></div></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= config ================= */
+const SUM_COLS=['Attributed GMV','Attributed items sold','Total {country} viewers','LIVE impression','Views','Product Impressions','Product Clicks','Likes','Shares','Comments','New followers','Viewers','Customers'];
+const AVGL_COLS=['Enter room rate','CTR','CTOR (SKU orders)','GPM','Viewers','Views'];
+const SRC5=[['For You feed','For you feed'],['video head','Video head'],['Message','Message'],['Search','Search'],['Shop Tab','Shop tab']];
+const SEED=[{"room":"7651668860756216589","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-15","dur":28616,"nslice":32,"Attributed GMV":2350.54,"Attributed items sold":94.0,"Total {country} viewers":890.0,"LIVE impression":458044.0,"Views":9707.0,"Product Impressions":38612.0,"Product Clicks":1619.0,"Likes":103066.0,"Shares":104.0,"Comments":1167.0,"New followers":39.0,"Viewers":1934.0,"Customers":65.0,"orders":65,"L_Enter room rate":[0.044645,0.025611,0.019424,0.017315,0.016256,0.015126,0.0178,0.018256,0.018943,0.019456,0.017763,0.018005,0.01852,0.01957,0.02132,0.019561,0.022434,0.021194,0.021577,0.021955,0.019389,0.018946,0.023247,0.022512,0.026052,0.021888,0.023743,0.024497,0.022221,0.022495,0.021864,0.022096],"L_CTR":[0.103342,0.188844,0.226857,0.246373,0.262409,0.206061,0.236424,0.195117,0.256209,0.197168,0.220787,0.236058,0.129628,0.15319,0.246333,0.138848,0.17842,0.238065,0.115179,0.08628,0.280246,0.190753,0.273828,0.278313,0.115874,0.119705,0.142326,0.17735,0.0781,0.120288,0.115125,0.038174],"L_CTOR (SKU orders)":[0.1,0.043889,0.17963,0.253968,0.066667,0.055556,0.159524,0.0,0.091111,0.0,0.044444,0.0,0.213333,0.083333,0.074074,0.0,0.07619,0.0,0.013333,0.066667,0.067302,0.022222,0.0,0.066667,0.105556,0.022222,0.0,0.046667,0.033333,0.033333,0.133333,0.076923],"L_GPM":[108.21,288.77,464.39,598.61,175.24,258.25,555.68,0.0,857.71,0.0,118.93,0.0,431.02,520.15,660.21,0.0,253.65,0.0,94.44,327.78,272.22,74.67,0.0,772.12,244.26,84.74,0.0,219.3,86.27,0.0,403.33,192.31],"L_Viewers":[44.0,81.0,59.0,53.0,47.0,56.0,44.0,47.0,46.0,47.0,48.0,49.0,47.0,50.0,71.0,74.0,76.0,57.0,49.0,62.0,77.0,74.0,61.0,69.0,73.0,74.0,55.0,88.0,88.0,67.0,45.0,56.0],"L_Views":[533.0,435.0,330.0,268.0,237.0,225.0,259.0,258.0,267.0,280.0,260.0,273.0,279.0,297.0,332.0,311.0,345.0,336.0,321.0,328.0,299.0,296.0,336.0,305.0,338.0,299.0,309.0,322.0,265.0,278.0,264.0,222.0],"products":[{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":123.69},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":499.6},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":95.01},{"n":"Kind Patches Hero Bundle","g":25.49},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":523.66},{"n":"6 Packs of Kind Patches Mood+ Patches","g":0.0},{"n":"6 Packs of Kind Patches Berberine Patches","g":73.12},{"n":"Kind Patches Ovuli Patches","g":14.85},{"n":"3 Packs of Kind Patches Collagen Patches","g":126.0},{"n":"3 Packs of Kind Patches NAD+ Patches","g":22.5},{"n":"3 Packs of Kind Patches Menopause Patches","g":0.0},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":72.25},{"n":"3 Packs of Kind Patches Stress Down Patches","g":48.76},{"n":"Kind Patches Skin Reboot Bundle","g":39.45},{"n":"Kind Patches Metabolic Trio Bundle","g":127.99},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":0.0},{"n":"Kind Patches Ultimate Cleanse Bundle","g":0.0},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":21.25},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":16.62},{"n":"3 Packs of Kind Patches Berberine Patches","g":141.94},{"n":"Kind Patches Super Hero Bundle: Berberine","g":27.6},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":86.7},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":29.78},{"n":"Kind Patches Happy Energy Bundle","g":39.81},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches Mood+ Patches","g":49.1},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":25.18},{"n":"Kind Patches","g":69.98},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches: Super Glow Patches","g":30.35},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":0.0},{"n":"Kind Patches: Hair Support Patches","g":0.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":54.84},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":0.0},{"n":"Kind Patches Boost & Reset Bundle","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Happy Burn Bundle","g":0.0},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":13.29},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches","g":27.98},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":0.0},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":0.0},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches","g":16.86},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":0.0},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Double Cleanse & NAD+ Bundle","g":46.16},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":26.59},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Kind Patches Double Cleanse Bundle","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":0.0},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":16.3},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":0.0},{"n":"Kind Patches Pulse Patches","g":13.99}],"source":{"For You feed":0.4069,"live cell":0.3042,"Following feed":0.0817,"video head":0.0204,"Other":0.0647,"Live Merge":0.221,"Message":0.1542,"Search":0.0702,"Shop Tab":0.0635,"Following Page":0.0153,"Creator's profile":0.0048},"profile":{"custF":0.7082999999999999,"viewF":0.4318,"custN":0.2917,"viewN":0.5682},"adSpend":979.39,"avgViewDur":null},{"room":"7652039008914082573","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-16","dur":28751,"nslice":32,"Attributed GMV":2890.65,"Attributed items sold":117.0,"Total {country} viewers":838.0,"LIVE impression":422749.0,"Views":8444.0,"Product Impressions":35988.0,"Product Clicks":1635.0,"Likes":121536.0,"Shares":149.0,"Comments":1192.0,"New followers":53.0,"Viewers":1691.0,"Customers":75.0,"orders":76,"L_Enter room rate":[0.045031,0.01726,0.015226,0.013907,0.015003,0.019259,0.021228,0.021305,0.021165,0.020445,0.022091,0.023407,0.022285,0.021131,0.020922,0.018397,0.020498,0.02215,0.021594,0.021937,0.018223,0.017827,0.018772,0.017912,0.016629,0.021688,0.020719,0.017621,0.020885,0.017141,0.020954,0.018779],"L_CTR":[0.093306,0.158155,0.113101,0.14547,0.513013,0.215081,0.132909,0.119464,0.111042,0.249952,0.403689,0.249532,0.119595,0.277832,0.224916,0.194455,0.283087,0.197883,0.304252,0.176344,0.130155,0.45519,0.361202,0.093643,0.170663,0.125506,0.356118,0.141994,0.279909,0.197367,0.184639,0.091914],"L_CTOR (SKU orders)":[0.077778,0.0,0.088889,0.133333,0.062778,0.266667,0.011111,0.133333,0.077778,0.06,0.08,0.095238,0.266667,0.019048,0.042222,0.0,0.0,0.054444,0.014394,0.083333,0.0,0.036923,0.151111,0.0,0.0,0.233333,0.03619,0.2,0.084444,0.016667,0.07619,0.066667],"L_GPM":[153.84,62.5,258.11,268.8,2354.32,873.16,412.76,239.59,341.35,199.5,669.87,155.76,769.82,195.25,557.16,0.0,0.0,419.65,280.2,611.45,0.0,521.91,691.92,141.33,0.0,728.8,354.5,875.02,564.83,207.69,166.75,141.67],"L_Viewers":[63.0,54.0,26.0,21.0,33.0,46.0,39.0,46.0,32.0,52.0,51.0,59.0,56.0,58.0,46.0,51.0,58.0,52.0,64.0,56.0,26.0,38.0,44.0,50.0,64.0,61.0,77.0,60.0,84.0,73.0,76.0,75.0],"L_Views":[492.0,284.0,288.0,231.0,200.0,217.0,235.0,275.0,269.0,265.0,262.0,290.0,268.0,235.0,245.0,228.0,247.0,262.0,259.0,250.0,238.0,227.0,237.0,229.0,238.0,305.0,272.0,249.0,295.0,245.0,330.0,277.0],"products":[{"n":"Kind Patches Happy Burn Bundle","g":417.22},{"n":"Kind Patches Metabolic Trio Bundle","g":187.69},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":630.76},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":223.22},{"n":"Kind Patches Skin Reboot Bundle","g":25.0},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":54.44},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":122.09},{"n":"Kind Patches Boost & Reset Bundle","g":24.36},{"n":"Kind Patches Super Hero Bundle: Berberine","g":0.0},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":49.17},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":168.9},{"n":"6 Packs of Kind Patches Berberine Patches","g":108.13},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":72.25},{"n":"Kind Patches Double Cleanse Bundle","g":0.0},{"n":"Kind Patches Ultimate Cleanse Bundle","g":0.0},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":51.05},{"n":"3 Packs of Kind Patches Collagen Patches","g":46.25},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":95.69},{"n":"6 Packs of Kind Patches Mood+ Patches","g":22.5},{"n":"Kind Patches Ovuli Patches","g":30.0},{"n":"Kind Patches","g":25.24},{"n":"Kind Patches","g":41.97},{"n":"Kind Patches: Super Glow Patches","g":45.86},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":21.25},{"n":"3 Packs of Kind Patches Berberine Patches","g":23.34},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":0.0},{"n":"3 Packs of Kind Patches Menopause Patches","g":0.0},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":23.62},{"n":"3 Packs of Kind Patches Stress Down Patches","g":21.04},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":0.0},{"n":"Kind Patches Hero Bundle","g":49.75},{"n":"3 Packs of Kind Patches NAD+ Patches","g":45.5},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":25.85},{"n":"Double Cleanse & NAD+ Bundle","g":50.0},{"n":"Kind Patches Happy Energy Bundle","g":0.0},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches","g":13.99},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":17.98},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":0.0},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":0.0},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":27.98},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":0.0},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":0.0},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":27.98},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches Mood+ Patches","g":23.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":31.12},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":18.0},{"n":"Kind Patches","g":43.44},{"n":"Kind Patches: Hair Support Patches","g":0.0},{"n":"Kind Patches Pulse Patches","g":0.0}],"source":{"For You feed":0.4348,"live cell":0.327,"Following feed":0.0912,"video head":0.0162,"Other":0.0604,"Live Merge":0.2001,"Message":0.1623,"Search":0.0664,"Shop Tab":0.0577,"Following Page":0.014,"Creator's profile":0.0048},"profile":{"custF":0.76,"viewF":0.4458,"custN":0.24,"viewN":0.5542},"adSpend":1051.15,"avgViewDur":null},{"room":"7652410264784046861","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-17","dur":18701,"nslice":21,"Attributed GMV":1995.91,"Attributed items sold":78.0,"Total {country} viewers":664.0,"LIVE impression":291564.0,"Views":6206.0,"Product Impressions":22390.0,"Product Clicks":898.0,"Likes":53093.0,"Shares":63.0,"Comments":653.0,"New followers":29.0,"Viewers":1018.0,"Customers":58.0,"orders":58,"L_Enter room rate":[0.055545,0.028058,0.021243,0.021955,0.018535,0.01851,0.020574,0.021391,0.020018,0.019131,0.016643,0.019632,0.019352,0.019555,0.018448,0.018137,0.019138,0.020373,0.019317,0.019648,0.0199],"L_CTR":[0.075675,0.266367,0.196022,0.154799,0.198948,0.179737,0.195513,0.217869,0.080162,0.122931,0.084547,0.091474,0.290277,0.113987,0.117941,0.095721,0.120286,0.052438,0.137105,0.29146,0.103438],"L_CTOR (SKU orders)":[0.057778,0.110635,0.064074,0.074074,0.022222,0.033333,0.183333,0.013333,0.333333,0.188889,0.013333,0.0,0.07619,0.091111,0.166667,0.022222,0.066667,0.033333,0.066667,0.078836,0.076923],"L_GPM":[127.1,535.81,501.74,221.22,76.67,190.0,350.8,141.71,1446.74,377.68,87.62,104.26,477.13,577.16,758.13,204.44,95.24,59.16,148.46,534.22,0.0],"L_Viewers":[27.0,67.0,71.0,55.0,65.0,43.0,38.0,49.0,37.0,59.0,21.0,31.0,50.0,39.0,58.0,59.0,45.0,51.0,58.0,55.0,40.0],"L_Views":[603.0,385.0,392.0,392.0,310.0,245.0,261.0,261.0,244.0,265.0,240.0,261.0,248.0,261.0,289.0,264.0,257.0,288.0,252.0,262.0,226.0],"products":[{"n":"Kind Patches Happy Burn Bundle","g":263.63},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":617.9},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":234.55},{"n":"6 Packs of Kind Patches Berberine Patches","g":73.59},{"n":"Kind Patches Metabolic Trio Bundle","g":71.01},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":98.43},{"n":"Kind Patches Ultimate Cleanse Bundle","g":0.0},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":21.04},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":24.2},{"n":"Kind Patches Super Hero Bundle: Berberine","g":30.0},{"n":"Kind Patches Skin Reboot Bundle","g":56.95},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":87.0},{"n":"Kind Patches Boost & Reset Bundle","g":31.95},{"n":"3 Packs of Kind Patches NAD+ Patches","g":0.0},{"n":"Kind Patches Hero Bundle","g":0.0},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":18.0},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":44.04},{"n":"3 Packs of Kind Patches Stress Down Patches","g":0.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":0.0},{"n":"6 Packs of Kind Patches Mood+ Patches","g":90.0},{"n":"3 Packs of Kind Patches Mood+ Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":0.0},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":27.98},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":12.91},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":25.18},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":0.0},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":33.29},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":30.85},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":0.0},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":0.0},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":17.98},{"n":"3 Packs of Kind Patches Collagen Patches","g":0.0},{"n":"Kind Patches","g":18.39},{"n":"3 Packs of Kind Patches Menopause Patches","g":42.41},{"n":"Kind Patches Double Cleanse Bundle","g":0.0},{"n":"Kind Patches Happy Energy Bundle","g":43.62},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Kind Patches","g":29.97},{"n":"Double Cleanse & NAD+ Bundle","g":0.0},{"n":"3 Packs of Kind Patches Berberine Patches","g":23.34},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":27.7},{"n":"Kind Patches: Super Glow Patches","g":0.0},{"n":"Kind Patches: Hair Support Patches","g":0.0},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":0.0},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":0.0},{"n":"Kind Patches Pulse Patches","g":0.0},{"n":"Kind Patches Ovuli Patches","g":14.84}],"source":{"For You feed":0.448,"live cell":0.3376,"Following feed":0.0885,"video head":0.0209,"Other":0.0676,"Live Merge":0.2097,"Message":0.1499,"Search":0.0556,"Shop Tab":0.0523,"Following Page":0.0124,"Creator's profile":0.0056},"profile":{"custF":0.7619,"viewF":0.419,"custN":0.23809999999999998,"viewN":0.581},"adSpend":643.84,"avgViewDur":null},{"room":"7652491980311726861","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-17","dur":9695,"nslice":33,"Attributed GMV":1193.73,"Attributed items sold":50.0,"Total {country} viewers":969.0,"LIVE impression":153588.0,"Views":3758.0,"Product Impressions":15295.0,"Product Clicks":691.0,"Likes":39635.0,"Shares":82.0,"Comments":369.0,"New followers":15.0,"Viewers":1817.0,"Customers":41.0,"orders":41,"L_Enter room rate":[0.073294,0.034822,0.036493,0.029175,0.025581,0.022906,0.024788,0.026881,0.023867,0.021145,0.019374,0.023606,0.020651,0.02707,0.02413,0.025452,0.02517,0.026481,0.020181,0.019974,0.021586,0.022164,0.019141,0.020503,0.016839,0.019733,0.017732,0.016808,0.020384,0.02224,0.02335,0.017999,0.015144],"L_CTR":[0.022234,0.061289,0.137536,0.178181,0.1405,0.169191,0.133667,0.098384,0.083641,0.120308,0.291748,0.113929,0.142501,0.114444,0.200647,0.290714,0.291538,0.348065,0.499025,0.45872,0.52873,0.575981,0.167838,0.128333,0.195489,0.061345,0.138124,0.205831,0.313399,0.248684,0.249813,0.143064,0.080044],"L_CTOR (SKU orders)":[0.0,0.3,0.0,0.05,0.128571,0.1,0.0,0.0,0.166667,0.266667,0.0,0.4,0.0,0.106667,0.106667,0.062222,0.025,0.022222,0.040385,0.08,0.0,0.053571,0.3,0.0,0.0,0.0,0.0,0.15,0.14,0.268571,0.4,0.133333,0.222222],"L_GPM":[0.0,572.35,0.0,179.64,362.0,285.71,0.0,0.0,434.0,1273.0,0.0,965.28,0.0,267.27,392.45,367.29,174.23,134.83,468.59,518.44,0.0,1056.79,641.5,0.0,0.0,0.0,0.0,755.59,742.96,552.88,391.73,312.86,958.33],"L_Viewers":[24.0,137.0,71.0,82.0,55.0,55.0,65.0,81.0,62.0,50.0,45.0,46.0,46.0,70.0,77.0,66.0,54.0,60.0,57.0,63.0,62.0,44.0,48.0,28.0,18.0,16.0,44.0,54.0,36.0,51.0,70.0,60.0,20.0],"L_Views":[279.0,173.0,192.0,150.0,137.0,121.0,142.0,154.0,119.0,107.0,84.0,98.0,92.0,125.0,111.0,111.0,104.0,121.0,90.0,93.0,99.0,95.0,88.0,100.0,83.0,97.0,83.0,78.0,96.0,100.0,112.0,85.0,39.0],"products":[{"n":"Kind Patches Metabolic Trio Bundle","g":151.38},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":36.79},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":257.13},{"n":"6 Packs of Kind Patches Mood+ Patches","g":27.0},{"n":"Kind Patches Super Hero Bundle: Berberine","g":0.0},{"n":"3 Packs of Kind Patches Stress Down Patches","g":19.55},{"n":"Kind Patches","g":17.98},{"n":"Kind Patches Boost & Reset Bundle","g":0.0},{"n":"Kind Patches","g":29.64},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":21.78},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":0.0},{"n":"Double Cleanse & NAD+ Bundle","g":0.0},{"n":"6 Packs of Kind Patches Berberine Patches","g":0.0},{"n":"Kind Patches Happy Burn Bundle","g":226.18},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":21.16},{"n":"Kind Patches Ultimate Cleanse Bundle","g":82.35},{"n":"Kind Patches Ovuli Patches","g":0.0},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":59.7},{"n":"Kind Patches","g":17.98},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"3 Packs of Kind Patches NAD+ Patches","g":0.0},{"n":"Kind Patches Hero Bundle","g":22.77},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":0.0},{"n":"Kind Patches Skin Reboot Bundle","g":0.0},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":0.0},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":22.65},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"3 Packs of Kind Patches Berberine Patches","g":15.01},{"n":"Kind Patches","g":16.86},{"n":"3 Packs of Kind Patches Menopause Patches","g":23.0},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":0.0},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":0.0},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":0.0},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":0.0},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":0.0},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":17.98},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":0.0},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":15.94},{"n":"3 Packs of Kind Patches Mood+ Patches","g":23.0},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":39.6},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches Collagen Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches Double Cleanse Bundle","g":21.99},{"n":"Kind Patches Happy Energy Bundle","g":0.0},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Kind Patches","g":16.98},{"n":"Kind Patches","g":0.0},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":0.0},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":0.0},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":0.0},{"n":"Kind Patches: Super Glow Patches","g":12.55},{"n":"Kind Patches: Hair Support Patches","g":28.95},{"n":"Kind Patches Pulse Patches","g":0.0}],"source":{"For You feed":0.4742,"live cell":0.3587,"Following feed":0.0905,"video head":0.0233,"Other":0.0675,"Live Merge":0.2013,"Message":0.1338,"Shop Tab":0.0577,"Search":0.048,"Following Page":0.0147,"Creator's profile":0.0044},"profile":{"custF":0.6470999999999999,"viewF":0.4314,"custN":0.3529,"viewN":0.5686},"adSpend":385.07,"avgViewDur":null},{"room":"7652786236372945678","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-18","dur":27538,"nslice":31,"Attributed GMV":3817.0,"Attributed items sold":180.0,"Total {country} viewers":1174.0,"LIVE impression":496024.0,"Views":11101.0,"Product Impressions":50102.0,"Product Clicks":2119.0,"Likes":332585.0,"Shares":244.0,"Comments":1594.0,"New followers":48.0,"Viewers":2419.0,"Customers":124.0,"orders":125,"L_Enter room rate":[0.067438,0.03799,0.016591,0.015689,0.01829,0.020951,0.021249,0.023456,0.022044,0.022233,0.020233,0.021205,0.02034,0.018722,0.019709,0.020816,0.018059,0.01896,0.0197,0.017979,0.020996,0.018032,0.022708,0.01774,0.019732,0.02141,0.022141,0.020278,0.022743,0.023026,0.020339],"L_CTR":[0.074588,0.129889,0.42002,0.32568,0.316182,0.318838,0.233131,0.359999,0.161966,0.125212,0.236243,0.122619,0.152932,0.308396,0.24707,0.244413,0.393052,0.133191,0.216297,0.227848,0.134405,0.221528,0.149658,0.082929,0.277534,0.065904,0.164332,0.125199,0.145078,0.24749,0.097303],"L_CTOR (SKU orders)":[0.144444,0.140741,0.038889,0.202302,0.034167,0.076061,0.117805,0.027037,0.409524,0.148148,0.05,0.133333,0.033333,0.175,0.028968,0.172778,0.087778,0.266667,0.055556,0.116667,0.033333,0.020635,0.110556,0.133333,0.189394,0.1,0.155556,0.133333,0.088889,0.117172,0.25],"L_GPM":[154.28,294.83,332.67,493.71,135.28,450.71,850.18,151.92,611.01,234.71,89.57,189.24,111.07,1117.68,164.15,1157.57,540.04,484.8,132.47,737.67,58.57,151.92,440.27,541.64,1206.7,209.13,534.9,221.19,453.57,391.21,351.94],"L_Viewers":[177.0,237.0,73.0,67.0,89.0,88.0,89.0,98.0,87.0,84.0,81.0,75.0,79.0,55.0,67.0,53.0,57.0,56.0,58.0,44.0,63.0,55.0,70.0,63.0,66.0,66.0,65.0,63.0,61.0,61.0,72.0],"L_Views":[1047.0,926.0,426.0,395.0,444.0,444.0,448.0,438.0,383.0,375.0,319.0,320.0,307.0,271.0,259.0,265.0,248.0,283.0,294.0,248.0,301.0,256.0,331.0,244.0,247.0,265.0,288.0,263.0,282.0,300.0,184.0],"products":[{"n":"Kind Patches Metabolic Trio Bundle","g":770.56},{"n":"3 Packs of Kind Patches Menopause Patches","g":88.35},{"n":"Kind Patches Happy Burn Bundle","g":276.99},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":790.85},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":321.14},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":88.97},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"3 Packs of Kind Patches Berberine Patches","g":73.98},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":300.0},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":31.61},{"n":"3 Packs of Kind Patches Mood+ Patches","g":42.32},{"n":"Kind Patches Hero Bundle","g":20.7},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":35.82},{"n":"Kind Patches","g":38.97},{"n":"Kind Patches Skin Reboot Bundle","g":20.7},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":25.98},{"n":"Kind Patches","g":16.98},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":17.48},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":39.72},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":15.68},{"n":"Kind Patches","g":26.03},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":0.0},{"n":"3 Packs of Kind Patches Stress Down Patches","g":0.0},{"n":"Kind Patches Double Cleanse Bundle","g":60.73},{"n":"Kind Patches Ultimate Cleanse Bundle","g":28.22},{"n":"6 Packs of Kind Patches Mood+ Patches","g":0.0},{"n":"Kind Patches: Hair Support Patches","g":55.97},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":46.72},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":21.38},{"n":"Kind Patches","g":59.42},{"n":"Kind Patches Ovuli Patches","g":0.0},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":29.97},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":12.51},{"n":"3 Packs of Kind Patches Collagen Patches","g":29.99},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":55.3},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":45.76},{"n":"Kind Patches","g":16.85},{"n":"Kind Patches","g":57.95},{"n":"Double Cleanse & NAD+ Bundle","g":63.31},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":12.9},{"n":"Kind Patches Happy Energy Bundle","g":75.67},{"n":"Kind Patches Metabolic Duo Bundle","g":21.99},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":0.0},{"n":"Kind Patches Boost & Reset Bundle","g":21.52},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":0.0},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":12.99},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":0.0},{"n":"3 Packs of Kind Patches NAD+ Patches","g":29.99},{"n":"Kind Patches","g":38.15},{"n":"Kind Patches Super Hero Bundle: Berberine","g":0.0},{"n":"Kind Patches","g":11.8},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"6 Packs of Kind Patches Berberine Patches","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":12.99},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":16.93},{"n":"Kind Patches","g":13.99},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches: Super Glow Patches","g":25.98},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":17.25},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":22.85},{"n":"Kind Patches Pulse Patches","g":12.91}],"source":{"For You feed":0.4477,"live cell":0.3476,"Following feed":0.078,"video head":0.0205,"Other":0.0839,"Live Merge":0.1843,"Message":0.138,"Search":0.0647,"Shop Tab":0.0579,"Creator's profile":0.0141,"Following Page":0.011},"profile":{"custF":0.6333,"viewF":0.3455,"custN":0.3667,"viewN":0.6545000000000001},"adSpend":1106.38,"avgViewDur":null},{"room":"7653156260744858381","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-19","dur":26227,"nslice":30,"Attributed GMV":3075.88,"Attributed items sold":129.0,"Total {country} viewers":838.0,"LIVE impression":385338.0,"Views":8302.0,"Product Impressions":28456.0,"Product Clicks":1137.0,"Likes":84567.0,"Shares":243.0,"Comments":770.0,"New followers":25.0,"Viewers":1704.0,"Customers":77.0,"orders":77,"L_Enter room rate":[0.045827,0.023722,0.021592,0.016418,0.01633,0.019507,0.02223,0.022261,0.022668,0.020548,0.021527,0.021132,0.019287,0.020791,0.020844,0.019147,0.021862,0.019323,0.017956,0.02066,0.026741,0.026029,0.018669,0.020899,0.020096,0.021117,0.019469,0.021311,0.020963,0.022951],"L_CTR":[0.045086,0.318871,0.175901,0.255673,0.090418,0.18311,0.113136,0.128419,0.132995,0.155945,0.138594,0.112506,0.213233,0.113461,0.065088,0.091866,0.107855,0.123118,0.130795,0.095076,0.185412,0.238521,0.122426,0.158944,0.150423,0.164658,0.170962,0.237635,0.102491,0.017544],"L_CTOR (SKU orders)":[0.022222,0.374603,0.033333,0.25746,0.066667,0.05,0.194444,0.155556,0.133333,0.172222,0.208333,0.022222,0.0,0.038889,0.0,0.066667,0.166667,0.0,0.011111,0.0,0.055556,0.079444,0.131746,0.08,0.016667,0.0,0.05,0.1,0.033333,1.0],"L_GPM":[116.53,957.14,202.59,979.85,214.01,155.96,544.8,473.03,290.79,522.94,528.9,290.0,275.17,791.32,213.08,783.45,391.12,0.0,116.67,645.18,124.19,266.87,494.67,391.25,201.8,592.56,514.04,204.55,429.66,1382.63],"L_Viewers":[107.0,65.0,69.0,68.0,49.0,44.0,65.0,51.0,58.0,45.0,60.0,58.0,42.0,61.0,59.0,57.0,50.0,69.0,73.0,48.0,65.0,62.0,36.0,65.0,58.0,50.0,53.0,45.0,37.0,35.0],"L_Views":[546.0,357.0,379.0,289.0,294.0,286.0,314.0,292.0,288.0,262.0,269.0,269.0,246.0,271.0,262.0,245.0,280.0,267.0,226.0,254.0,342.0,321.0,225.0,244.0,254.0,254.0,236.0,246.0,234.0,50.0],"products":[{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":816.57},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":426.48},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":70.3},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":0.0},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":48.63},{"n":"6 Packs of Kind Patches Mood+ Patches","g":27.6},{"n":"3 Packs of Kind Patches Stress Down Patches","g":111.1},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":199.0},{"n":"Kind Patches Ultimate Cleanse Bundle","g":26.31},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":75.83},{"n":"Kind Patches Hero Bundle","g":13.52},{"n":"3 Packs of Kind Patches Mood+ Patches","g":81.58},{"n":"Kind Patches Happy Energy Bundle","g":57.99},{"n":"3 Packs of Kind Patches Menopause Patches","g":18.38},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":19.35},{"n":"Kind Patches Super Hero Bundle: Berberine","g":173.46},{"n":"3 Packs of Kind Patches Collagen Patches","g":57.5},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":0.0},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":0.0},{"n":"Kind Patches Metabolic Trio Bundle","g":102.26},{"n":"Kind Patches Happy Burn Bundle","g":336.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":26.57},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":91.21},{"n":"6 Packs of Kind Patches Berberine Patches","g":29.72},{"n":"Kind Patches","g":51.81},{"n":"Kind Patches","g":39.21},{"n":"Kind Patches Ovuli Patches","g":0.0},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":0.0},{"n":"Kind Patches Skin Reboot Bundle","g":16.39},{"n":"Kind Patches Boost & Reset Bundle","g":0.0},{"n":"Kind Patches","g":12.22},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":0.0},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":11.04},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":12.34},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":0.0},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":0.0},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":13.29},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":0.0},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches NAD+ Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":12.23},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches Double Cleanse Bundle","g":0.0},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":18.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Double Cleanse & NAD+ Bundle","g":0.0},{"n":"3 Packs of Kind Patches Berberine Patches","g":20.39},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches: Super Glow Patches","g":11.9},{"n":"Kind Patches: Hair Support Patches","g":64.09},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":0.0},{"n":"Kind Patches Pulse Patches","g":0.0},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":0.0}],"source":{"For You feed":0.4234,"live cell":0.317,"Following feed":0.0814,"video head":0.0225,"Other":0.0638,"Live Merge":0.2121,"Message":0.1464,"Search":0.091,"Shop Tab":0.0495,"Following Page":0.0111,"Creator's profile":0.0052},"profile":{"custF":0.6727,"viewF":0.43799999999999994,"custN":0.3273,"viewN":0.562},"adSpend":809.44,"avgViewDur":null},{"room":"7654252822136998670","creator":"Kind Patches USA","shop":"7496160584762034733","date":"2026-06-22","dur":1867,"nslice":32,"Attributed GMV":172.32,"Attributed items sold":10.0,"Total {country} viewers":2328.0,"LIVE impression":44194.0,"Views":2439.0,"Product Impressions":4929.0,"Product Clicks":162.0,"Likes":1272.0,"Shares":15.0,"Comments":58.0,"New followers":0.0,"Viewers":3144.0,"Customers":6.0,"orders":6,"L_Enter room rate":[0.02459,0.050934,0.067278,0.147971,0.07346,0.034221,0.02849,0.071659,0.096943,0.087707,0.073232,0.121723,0.12025,0.1264,0.139769,0.079426,0.031829,0.027844,0.023026,0.025982,0.021424,0.021262,0.034553,0.026518,0.01817,0.017712,0.019485,0.022312,0.015299,0.020557,0.025268,0.020939],"L_CTR":[0.0,0.0,0.0,0.024194,0.16129,0.111111,0.8,0.067416,0.038462,0.141732,0.146552,0.035897,0.014151,0.008439,0.006873,0.013889,0.0,0.042553,0.028571,0.219512,0.225806,0.34375,0.196078,0.105263,0.178571,0.0,0.0,0.030303,0.0,0.064516,0.05,0.151515],"L_CTOR (SKU orders)":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.285714,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.25,0.2,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"L_GPM":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,168.41,272.55,0.0,0.0,0.0,389.45,0.0,0.0,0.0,0.0,0.0,0.0,572.11,457.5,1072.08,0.0,0.0,0.0,0.0,0.0,0.0],"L_Viewers":[0.0,0.0,9.0,8.0,92.0,122.0,55.0,32.0,77.0,148.0,158.0,155.0,212.0,249.0,303.0,317.0,266.0,151.0,90.0,64.0,61.0,52.0,41.0,69.0,65.0,55.0,41.0,42.0,51.0,47.0,56.0,56.0],"L_Views":[3.0,30.0,44.0,124.0,62.0,36.0,30.0,89.0,130.0,127.0,116.0,195.0,212.0,237.0,291.0,144.0,55.0,47.0,35.0,41.0,31.0,32.0,51.0,38.0,28.0,24.0,28.0,33.0,22.0,31.0,40.0,33.0],"products":[{"n":"Kind Patches Happy Burn Bundle","g":41.73},{"n":"Kind Patches Metabolic Trio Bundle","g":57.75},{"n":"Kind Patches 6-Pack Ultimate Burn Bundle","g":0.0},{"n":"Kind Patches｜ Focus Patches ｜30 Deep Focus Patches:Natural I","g":46.8},{"n":"Kind Patches Metabolic Pump Bundle: Pulse Patches + MB Patch","g":0.0},{"n":"3 Packs of Kind Patches Stress Down Patches","g":0.0},{"n":"Kind Patches Double Cleanse Bundle","g":25.73},{"n":"3 Packs of Kind Patches Berberine Patches","g":21.74},{"n":"Kind Patches Super Green Patches: 30 Green Energy Patches","g":11.6},{"n":"Kind Patches | Energy Patches | 30 Energy Patches:Natural In","g":0.0},{"n":"Kind Patches | NAD+ Patches | 30 Age Rewind Patches : suppor","g":0.0},{"n":"Kind Patches Boost & Reset Bundle","g":0.0},{"n":"Kind Patches | Period Patches | 30 Period Relief Patches: na","g":0.0},{"n":"Kind Patches | Love Patches | 30 Passion Support Patches: Su","g":0.0},{"n":"Kind Patches | Energy Patches Extra Strong｜30 Energy Patches","g":0.0},{"n":"Kind Patches | Collagen Patches: supports collagen productio","g":0.0},{"n":"Kind Patches | Stress Down Patches | 30 Ashwagandha patches:","g":19.48},{"n":"Kind Patches: Mood+ Patches: 30 Mental Wellness Patches: Sup","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches NAD+ Patches","g":0.0},{"n":"3 Packs of Kind Patches Mood+ Patches","g":0.0},{"n":"3 Packs of Kind Patches Energy Patches Extra Strong","g":0.0},{"n":"Kind Patches Hero Bundle","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches Skin Reboot Bundle","g":16.62},{"n":"3 Packs of Kind Patches Collagen Patches","g":0.0},{"n":"Kind Patches Super Hero Bundle: Berberine","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"3 Packs of Kind Patches Menopause Patches","g":0.0},{"n":"Kind Patches Meta Flow Bundle: Natural Ingredient","g":0.0},{"n":"Kind Patches Meta Reset Bundle: Natural Ingredient","g":0.0},{"n":"6 Packs of Kind Patches Berberine Patches","g":0.0},{"n":"6 Packs of Kind Patches Mood+ Patches","g":0.0},{"n":"Kind Patches Ultimate Cleanse Bundle","g":0.0},{"n":"Kind Patches Happy Energy Bundle","g":0.0},{"n":"Kind Patches Happy Love Bundle","g":0.0},{"n":"Kind Patches Meta Boost Bundle","g":0.0},{"n":"Kind Patches Happy Boost Bundle","g":0.0},{"n":"Kind Patches: 30 Advanced Metabolic Balance Patches","g":0.0},{"n":"Kind Patches Metabolic Duo Bundle","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Double Cleanse & NAD+ Bundle","g":29.03},{"n":"3 Packs of Kind Patches Dream Patches Nano","g":0.0},{"n":"All Day Menopause Bundle: 30 Mental Wellness Patches + 30 Me","g":0.0},{"n":"Double Ashwagandha Bundle: 30 Magnesium Patches + 30 Relaxin","g":0.0},{"n":"Kind Patches","g":0.0},{"n":"Kind Patches","g":23.46},{"n":"4 Packs of Metabolic Balance Patches:  Energy Support","g":0.0},{"n":"Kind Patches The Sculpt Pack: 4 packs of Berberine Patches","g":0.0},{"n":"Kind Patches RAW Bundle: 30 Mental Wellness Patches + 30 Pee","g":0.0},{"n":"Kind Patches Blush Bundle: 30 Love Patches + 30 Mojo Patches","g":0.0},{"n":"Kind Patches: Super Glow Patches","g":0.0},{"n":"Kind Patches: Hair Support Patches","g":0.0},{"n":"Kind Patches Radiance Burn Bundle: 30 Super Glow Patches + 3","g":0.0},{"n":"Kind Patches Beauty Bundle: 30 Hair Nutrition Patches + 30 A","g":0.0},{"n":"Kind Patches Instant Glow Trio: 30 Unpuff Patches + 30 Antio","g":0.0},{"n":"Kind Patches Pulse Patches","g":0.0},{"n":"Kind Patches Beast Mode Bundle: 30 Mojo Patches + 30 Pulse P","g":0.0},{"n":"Kind Patches Beauty Burn Bundle: 30 MB + 30 Berberine + 30 U","g":62.98},{"n":"Kind Patches Ovuli Patches","g":0.0}],"source":{"For You feed":0.48,"live cell":0.444,"Following feed":0.0212,"video head":0.0144,"Other":0.2144,"Live Merge":0.1784,"Creator's profile":0.0484,"Message":0.0368,"Shop Tab":0.0212,"Search":0.018,"Following Page":0.0032},"profile":{"custF":1.0,"viewF":0.1243,"custN":0.0,"viewN":0.8756999999999999},"adSpend":55.59,"avgViewDur":null}];
+const DB_KEY='live_db_v2', GOAL_KEY='live_goals_v2';
+
+/* ================= storage ================= */
+function loadDB(){ try{return JSON.parse(localStorage.getItem(DB_KEY))||{sessions:{}}}catch(e){return{sessions:{}}} }
+function saveDB(db){ localStorage.setItem(DB_KEY,JSON.stringify(db)); }
+function seedIfEmpty(){ const db=loadDB(); if(!Object.keys(db.sessions).length){ SEED.forEach(s=>db.sessions[s.room]=s); saveDB(db); } }
+function loadGoals(){ try{return JSON.parse(localStorage.getItem(GOAL_KEY))||{}}catch(e){return{}} }
+function saveGoals(g){ localStorage.setItem(GOAL_KEY,JSON.stringify(g)); }
+
+/* ================= ONLINE MODE (Lark + Cloudflare Worker) =================
+   Fill WORKER_URL after deploying the Worker. Blank = local prototype mode
+   (seed + localStorage, current behaviour). */
+const CONFIG = {
+  WORKER_URL: '',                        // e.g. 'https://live-dashboard.xxx.workers.dev'  (no trailing slash)
+  LARK_APP_ID: 'cli_aacc98f79a385ee6',
+};
+const ONLINE = () => !!CONFIG.WORKER_URL;
+let SESSION = null;                       // {token,email,role,viewProjects,uploadProjects,name}
+let ADMIN_PROJECTS = [];
+const _sessCache = {};
+async function api(path, opts={}){
+  const r = await fetch(CONFIG.WORKER_URL+path, { ...opts,
+    headers:{ 'Content-Type':'application/json', ...(SESSION?{Authorization:'Bearer '+SESSION.token}:{}) , ...(opts.headers||{}) } });
+  const j = await r.json().catch(()=>({error:'bad response'}));
+  if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+function canUpload(pid){ if(!ONLINE())return true; const u=SESSION&&SESSION.uploadProjects; return u==='*'||(Array.isArray(u)&&u.includes(pid)); }
+async function getProjects(){
+  if(!ONLINE()){ const pm=projectsMap(loadDB()); return Object.values(pm).map(p=>({projectId:p.id,name:p.name})); }
+  return (await api('/projects')).projects||[];
+}
+async function getSessions(pid){
+  if(!ONLINE()){ const pm=projectsMap(loadDB()); return pm[pid]?pm[pid].sessions:[]; }
+  if(_sessCache[pid]) return _sessCache[pid];
+  _sessCache[pid]=(await api('/records?project='+encodeURIComponent(pid))).sessions||[]; return _sessCache[pid];
+}
+async function getGoal(pid,month){
+  if(!ONLINE()){ const g=(loadGoals()[pid]||{}); return g.gmv?{gmvGoal:g.gmv,hoursGoal:g.hours,locked:!!g.locked}:null; }
+  try{ return (await api('/goals?project='+encodeURIComponent(pid)+'&month='+month)).goal; }catch(e){ return null; }
+}
+/* ---- Lark login gate ---- */
+function showGate(msg){ const g=document.getElementById('gate'); if(g){ g.style.display='flex'; document.getElementById('gateMsg').innerHTML=msg; } }
+function hideGate(){ const g=document.getElementById('gate'); if(g) g.style.display='none'; }
+async function boot(){
+  if(!ONLINE()){ seedIfEmpty(); render(); return; }
+  document.body.classList.add('online');
+  if(!window.h5sdk){ showGate('请在 <b>Lark 工作台</b> 内打开本应用。<br><span class="mini">This app must be opened inside the Lark workplace.</span>'); return; }
+  showGate('Signing in with Lark…');
+  window.h5sdk.ready(()=>{
+    tt.requestAuthCode({ appId: CONFIG.LARK_APP_ID,
+      success: async (res)=>{
+        try{
+          const r=await fetch(CONFIG.WORKER_URL+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:res.code})});
+          const j=await r.json();
+          if(!r.ok){ showGate('登录被拒绝:'+(j.error||r.status)+'<br><span class="mini">仅限 @nb-agency.live 账号</span>'); return; }
+          SESSION=j; hideGate();
+          if(SESSION.role==='admin') document.body.classList.add('is-admin');
+          render();
+        }catch(e){ showGate('登录失败:'+e.message); }
+      },
+      fail:(e)=>showGate('Lark 授权失败:'+JSON.stringify(e))
+    });
+  });
+  window.h5sdk.error && window.h5sdk.error(()=>showGate('Lark JSSDK 加载错误,请在 Lark 内重试。'));
+}
+/* ---- admin panel ---- */
+async function openAdmin(){
+  const panel=document.getElementById('adminPanel'); panel.style.display=panel.style.display==='block'?'none':'block';
+  if(panel.style.display!=='block')return;
+  try{ const [pu,pp]=await Promise.all([api('/admin/users'),api('/admin/projects')]);
+    ADMIN_PROJECTS=pp.projects||[]; renderAdminUsers(pu.users||[]);
+  }catch(e){ toast('加载失败:'+e.message); }
+}
+function renderAdminUsers(users){
+  const box=document.getElementById('adminUsers');
+  const chips=(sel)=> sel==='*' ? '<span class="chip on">ALL</span>'
+    : ADMIN_PROJECTS.map(p=>{ const on=(sel||'').split(',').map(x=>x.trim()).includes(p.projectId); return `<label class="chip"><input type="checkbox" value="${p.projectId}" ${on?'checked':''}> ${p.name}</label>`; }).join('');
+  box.innerHTML=users.map(u=>`<div class="arow" data-email="${u.email}">
+      <div class="ae">${u.email} <span class="mini">(${u.role})</span></div>
+      <div class="acell"><div class="mini">View</div><div class="chips view">${chips(u.viewProjects)}</div></div>
+      <div class="acell"><div class="mini">Upload</div><div class="chips upload">${chips(u.uploadProjects)}</div></div>
+      <button class="btn sm asave">Save</button></div>`).join('') || '<div class="emptyc">No users yet — they appear here after first login.</div>';
+  box.querySelectorAll('.asave').forEach(b=>b.onclick=async e=>{
+    const row=e.target.closest('.arow'), email=row.dataset.email;
+    const view=[...row.querySelectorAll('.view input:checked')].map(x=>x.value);
+    const upload=[...row.querySelectorAll('.upload input:checked')].map(x=>x.value);
+    try{ await api('/admin/user',{method:'POST',body:JSON.stringify({email,role:'member',viewProjects:view,uploadProjects:upload})}); toast('Saved '+email); Object.keys(_sessCache).forEach(k=>delete _sessCache[k]); }
+    catch(err){ toast('Save failed: '+err.message); }
+  });
+}
+
+/* ================= helpers ================= */
+function num(v){ if(v==null)return 0; if(typeof v==='number')return v; const s=String(v).replace(/[$,%\s]/g,'').trim(); const n=parseFloat(s); return isNaN(n)?0:n; }
+function pctv(v){ if(v==null)return null; const s=String(v).trim(); if(s==='')return null; return num(s)/100; }
+function durSec(s){ s=String(s); const h=s.match(/(\d+)h/),m=s.match(/(\d+)m/),x=s.match(/(\d+)s/); return (h?+h[1]:0)*3600+(m?+m[1]:0)*60+(x?+x[1]:0); }
+function fmtDur(sec){ const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60); return h+'h'+String(m).padStart(2,'0')+'m'; }
+function fmtSecShort(sec){ if(sec==null)return '—'; const m=Math.floor(sec/60),s=Math.round(sec%60); return m? m+'m'+String(s).padStart(2,'0')+'s' : s+'s'; }
+function mean(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+const F={ money:v=>'$'+Math.round(v).toLocaleString('en-US'), money2:v=>'$'+(+v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
+  int:v=>Math.round(v).toLocaleString('en-US'), n1:v=>(+v).toFixed(1), pct:v=>(v*100).toFixed(2)+'%', x2:v=>v==null?'—':(+v).toFixed(2)+'x', dur:v=>fmtDur(v) };
+function addDays(iso,n){ const d=new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function daysDiff(a,b){ return Math.round((new Date(b)-new Date(a))/864e5); }
+function monthStart(iso){ return iso.slice(0,8)+'01'; }
+function realToday(){ return new Date().toISOString().slice(0,10); }
+
+/* ================= parse xlsx ================= */
+function parseWorkbook(wb){
+  const ws=wb.Sheets['All']; if(!ws) throw new Error('missing All sheet');
+  const A=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:false});
+  const meta={}; for(let i=0;i<9;i++){ const r=A[i]||[]; if(r[0])meta[String(r[0]).trim()]=r[1]; }
+  const room=String(meta['Room ID']||'').trim();
+  const dm=String(meta['Started']||'').match(/(\d{4}-\d{2}-\d{2})/);
+  const date=dm?dm[1]:''; if(!room||!date)throw new Error('missing Room ID/date');
+  let hr=-1; for(let i=0;i<A.length;i++){ if(A[i]&&String(A[i][0]).trim()==='Datetime'){hr=i;break;} }
+  if(hr<0)throw new Error('header not found');
+  const idx={}; A[hr].forEach((h,i)=>idx[String(h).trim()]=i);
+  const rows=[]; for(let i=hr+1;i<A.length;i++){ if(A[i]&&A[i][0])rows.push(A[i]); }
+  const s={room,creator:meta['Creator name']||'Unknown',shop:String(meta['Shop ID']||'').trim(),date,dur:durSec(meta['Duration']||'0s'),nslice:rows.length};
+  SUM_COLS.forEach(c=>{ const j=idx[c]; s[c]= j==null?0:Math.round(rows.reduce((a,r)=>a+num(r[j]),0)*100)/100; });
+  const jo=idx['Attributed orders']; s.orders= jo==null?0:Math.round(rows.reduce((a,r)=>a+num(r[jo]),0));
+  AVGL_COLS.forEach(c=>{ const j=idx[c]; s['L_'+c]= j==null?[]:rows.map(r=>Math.round(num(r[j])*1e6)/1e6); });
+  s.products=[]; const pw=wb.Sheets['Product'];
+  if(pw){ const P=XLSX.utils.sheet_to_json(pw,{header:1,defval:null,raw:false}); const pi={}; (P[0]||[]).forEach((h,i)=>pi[String(h).trim()]=i);
+    for(let i=1;i<P.length;i++){ const nm=P[i][pi['Product name']]; if(!nm)continue; s.products.push({n:String(nm).split(',')[0].trim().slice(0,60),g:Math.round(num(P[i][pi['Attributed GMV']])*100)/100}); } }
+  s.source={}; const vw=wb.Sheets['Viewer source'];
+  if(vw){ const V=XLSX.utils.sheet_to_json(vw,{header:1,defval:null,raw:false});
+    for(let i=1;i<V.length;i++){ const lab=V[i][0]; if(lab==null)continue; const p=pctv(V[i][1]); if(p==null)continue; const k=String(lab).trim(); s.source[k]=Math.round(((s.source[k]||0)+p)*1e5)/1e5; } }
+  s.profile={}; const prw=wb.Sheets['Profile'];
+  if(prw){ const R=XLSX.utils.sheet_to_json(prw,{header:1,defval:null,raw:false}); let hh=-1; for(let i=0;i<R.length;i++){ if(String(R[i][0]).trim()==='Group'){hh=i;break;} }
+    if(hh>=0){ const ci={}; R[hh].forEach((h,i)=>ci[String(h).trim()]=i);
+      for(let i=hh+1;i<R.length;i++){ if(String(R[i][ci['Group']]).trim()==='Followers'){ const t=String(R[i][ci['Type']]); const k= t.indexOf('Non')>=0?'N':'F';
+        s.profile['cust'+k]=pctv(R[i][ci['Customer profile']]); s.profile['view'+k]=pctv(R[i][ci['Viewer profile']]); } } } }
+  s.adSpend=null; s.avgViewDur=null;
+  return s;
+}
+
+/* ================= pending ================= */
+let PENDING=[];
+async function stageFiles(files){
+  const db=loadDB();
+  for(const f of files){
+    try{ const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const s=parseWorkbook(wb);
+      if(db.sessions[s.room]||PENDING.find(p=>p.s.room===s.room)){ toast('Already exists (skipped): '+s.date+' · '+s.creator); continue; }
+      PENDING.push({s,adSpend:'',avgViewDur:''});
+    }catch(e){ toast('✕ '+f.name+' : '+e.message); }
+  }
+  renderPending();
+}
+function renderPending(){
+  const box=document.getElementById('pending'), bar=document.getElementById('commitBar');
+  box.innerHTML=PENDING.map((p,i)=>`<div class="pcard">
+    <div class="ph"><span class="d">${p.s.date} · ${p.s.creator}</span><span class="x" data-i="${i}">✕</span></div>
+    <div class="mini">${fmtDur(p.s.dur)} · GMV $${Math.round(p.s['Attributed GMV']).toLocaleString()} · ${p.s.orders} orders · ${p.s.nslice} slices${p.s.dur<3600?' · <span class="warnc">short &lt;1h</span>':''}</div>
+    <div class="rowm">
+      <div class="f"><label class="lb">Ad Spend ($)</label><input type="number" data-k="adSpend" data-i="${i}" value="${p.adSpend}" placeholder="0"/></div>
+      <div class="f"><label class="lb">Avg View Dur (s)</label><input type="number" data-k="avgViewDur" data-i="${i}" value="${p.avgViewDur}" placeholder="sec"/></div>
+    </div></div>`).join('');
+  bar.style.display=PENDING.length?'block':'none';
+  document.getElementById('commitHint').textContent=PENDING.length?`${PENDING.length} session(s) pending`:'';
+  box.querySelectorAll('input').forEach(inp=>inp.oninput=e=>{ PENDING[+e.target.dataset.i][e.target.dataset.k]=e.target.value; });
+  box.querySelectorAll('.x').forEach(x=>x.onclick=e=>{ PENDING.splice(+e.target.dataset.i,1); renderPending(); });
+}
+async function commitPending(){
+  PENDING.forEach(p=>{ p.s.adSpend=p.adSpend===''?null:num(p.adSpend); p.s.avgViewDur=p.avgViewDur===''?null:num(p.avgViewDur); });
+  if(ONLINE()){
+    let n=0,err=0;
+    for(const p of PENDING){ const pid=p.s.shop||p.s.creator;
+      if(!canUpload(pid)){ toast('No upload permission for '+pid); err++; continue; }
+      try{ await api('/ingest',{method:'POST',body:JSON.stringify({session:p.s})}); delete _sessCache[pid]; n++; }
+      catch(e){ toast('Upload failed: '+e.message); err++; } }
+    PENDING=[]; renderPending(); toast('Uploaded '+n+' session(s)'+(err?(' · '+err+' failed'):'')); render(); return;
+  }
+  const db=loadDB(); let n=0; PENDING.forEach(p=>{ db.sessions[p.s.room]=p.s; n++; }); saveDB(db);
+  PENDING=[]; renderPending(); toast('Committed to database: '+n+' session(s)'); render();
+}
+
+/* ================= aggregation ================= */
+function projectId(s){ return s.shop||s.creator; }
+function projectsMap(db){ const m={}; Object.values(db.sessions).forEach(s=>{ const p=projectId(s); (m[p]=m[p]||{id:p,name:s.creator,sessions:[]}).sessions.push(s); }); return m; }
+function inRange(ss,a,b){ return ss.filter(s=>s.date>=a&&s.date<=b); }
+function agg(ss){
+  const days=new Set(); let dur=0,orders=0,adSpend=0,hasAd=false; const vd=[];
+  const L={err:[],ctr:[],ctor:[],gpm:[],viewers:[],views:[]}; const sums={}; SUM_COLS.forEach(c=>sums[c]=0);
+  ss.forEach(s=>{ days.add(s.date); dur+=s.dur; orders+=s.orders;
+    if(s.adSpend!=null){ adSpend+=s.adSpend; hasAd=true; } if(s.avgViewDur!=null)vd.push(s.avgViewDur);
+    SUM_COLS.forEach(c=>sums[c]+=s[c]||0);
+    L.err.push(...(s['L_Enter room rate']||[])); L.ctr.push(...(s['L_CTR']||[])); L.ctor.push(...(s['L_CTOR (SKU orders)']||[]));
+    L.gpm.push(...(s['L_GPM']||[])); L.viewers.push(...(s['L_Viewers']||[])); L.views.push(...(s['L_Views']||[])); });
+  const hours=dur/3600, dc=days.size||1;
+  return { n:ss.length, dcount:days.size, hours, dur, gmv:sums['Attributed GMV'], imp:sums['LIVE impression'],
+    prodImp:sums['Product Impressions'], prodClk:sums['Product Clicks'], viewsSum:sums['Views'], viewersSum:sums['Viewers'],
+    items:sums['Attributed items sold'], customers:sums['Customers'], likes:sums['Likes'], shares:sums['Shares'], newFollowers:sums['New followers'], orders, adSpend, hasAd,
+    avgViewDur: vd.length? mean(vd):null,
+    hourlyGmv: hours? sums['Attributed GMV']/hours:0, aov: orders? sums['Attributed GMV']/orders:0,
+    impPerHour: hours? sums['LIVE impression']/hours:0,
+    avgErr: sums['LIVE impression']>0? sums['Views']/sums['LIVE impression']:0,
+    avgCtr: sums['Product Impressions']>0? sums['Product Clicks']/sums['Product Impressions']:0,
+    avgCtor: sums['Product Clicks']>0? orders/sums['Product Clicks']:0,
+    avgViews:mean(L.views), avgViewer:mean(L.viewers),
+    avgOrders: days.size? orders/days.size:0, roi: hasAd&&adSpend>0? sums['Attributed GMV']/adSpend:null };
+}
+
+/* ================= range ================= */
+let RANGE={mode:'l7d'};
+function effToday(sessions){
+  const dates=[...new Set(sessions.map(s=>s.date))].sort(); if(!dates.length)return realToday();
+  const latest=dates[dates.length-1], rt=realToday();
+  return dates.some(d=>d>=monthStart(rt))? rt : latest; // use calendar day if current month has data, else latest
+}
+function resolveRange(sessions){
+  const today=effToday(sessions); let start,end;
+  if(RANGE.mode==='today'){ start=end=today; }
+  else if(RANGE.mode==='l7d'){ end=today; start=addDays(today,-6); }
+  else if(RANGE.mode==='l30d'){ end=today; start=addDays(today,-29); }
+  else { start=RANGE.start||addDays(today,-6); end=RANGE.end||today; }
+  const len=daysDiff(start,end)+1; const pEnd=addDays(start,-1), pStart=addDays(pEnd,-(len-1));
+  return {start,end,len,pStart,pEnd,today};
+}
+
+/* ================= render ================= */
+let CH={};
+function mkChart(id,cfg){ if(CH[id])CH[id].destroy(); CH[id]=new Chart(document.getElementById(id),cfg); }
+function deltaBadge(cur,base,higher=true){
+  if(base==null||base===0||!isFinite(base)||cur==null)return '<span class="delta flat">—</span>';
+  const p=(cur-base)/Math.abs(base); let cls='flat'; if(Math.abs(p)>=0.15)cls=((p>0)===higher)?'up':'down';
+  if(Math.abs(p)>=0.40&&cls==='down')cls='risk';
+  return `<span class="delta ${cls}">${p>0?'+':''}${(p*100).toFixed(1)}%</span>`;
+}
+const GRID='#1a1f12';
+async function render(){
+  const projects=await getProjects();
+  const sel=document.getElementById('proj'), cur=sel.value;
+  sel.innerHTML=projects.map(p=>`<option value="${p.projectId}">${p.name}</option>`).join('');
+  if(projects.some(p=>p.projectId===cur))sel.value=cur;
+  document.getElementById('dbstat').textContent = ONLINE()
+    ? (SESSION? (SESSION.email+' · '+SESSION.role) : '')
+    : (projects.length+' project(s) · '+Object.keys(loadDB().sessions).length+' sessions');
+  if(!projects.length){ document.getElementById('overviewCards').innerHTML='<div class="emptyc">No projects visible to you yet.</div>'; return; }
+  const pid=sel.value||projects[0].projectId; sel.value=pid;
+  const sessions=await getSessions(pid);
+  if(!sessions.length){ document.getElementById('overviewCards').innerHTML='<div class="emptyc">No data for this project yet.</div>'; return; }
+  const R=resolveRange(sessions);
+  Chart.defaults.color='#8b9682'; Chart.defaults.font.family="'Space Grotesk',sans-serif";
+  document.getElementById('rangeLabel').textContent=`This ${R.start} → ${R.end} (${R.len}d) · Prior ${R.pStart} → ${R.pEnd}`;
+  const A=agg(inRange(sessions,R.start,R.end)), P=agg(inRange(sessions,R.pStart,R.pEnd));
+  renderQuick(A,P); renderOverview(sessions,R,A); renderFunnel(A,P);
+  renderProducts(sessions,R); renderSourceFollow(sessions,R.today); renderDaily(sessions,R.today); renderGoals(sessions,R.today);
+  const shortDays=[...new Set(sessions.filter(s=>s.dur<3600).map(s=>s.date))];
+  document.getElementById('foot').innerHTML=
+    `Definitions: sum metrics = sum of 15-min slices; rate metrics (enter rate / CTR / CTOR / GPM) = mean of slices; <b>AOV = period GMV ÷ period orders</b>; `+
+    `hours = duration in minutes/60; Hourly GMV = ΣGMV ÷ Σhours; ROI = GMV ÷ Ad spend. Same-day sessions are merged; primary key = Room ID (dedup).`+
+    `<br>"Today" = calendar day (this prototype falls back to the latest data date when the current month has no data). Section 06 fixed L30D; Section 07 fixed MTD, excluding sessions &lt;1h.`+
+    (shortDays.length?`<br><span class="warnc">Short sessions (&lt;1h) stored but excluded from Section 07: ${shortDays.join(', ')}</span>`:'')+
+    `<br><span style="color:var(--risk)">Note: Ad Spend for historical days is a placeholder sample (to demo ROI); real values come from data entry once the backend is connected.</span>`;
+}
+
+function renderQuick(A,P){
+  const M=[['GMV',a=>a.gmv,'money'],['Hourly GMV',a=>a.hourlyGmv,'money'],['Avg Hourly Impression',a=>a.impPerHour,'int'],
+    ['Avg Enter Room Rate',a=>a.avgErr,'pct'],['Avg Views',a=>a.avgViews,'n1'],['Avg CTR',a=>a.avgCtr,'pct'],
+    ['Avg CTOR',a=>a.avgCtor,'pct'],['Avg Orders / Day',a=>a.avgOrders,'n1'],['Avg AOV',a=>a.aov,'money2'],['Avg ROI',a=>a.roi,'x2']];
+  const good=[],bad=[];
+  M.forEach(([nm,g,fmt])=>{ const c=g(A),b=g(P); if(b==null||b===0||c==null)return; const p=(c-b)/Math.abs(b); if(Math.abs(p)<0.15)return; (p>0?good:bad).push({nm,c,b,p,fmt}); });
+  const row=it=>`<div class="r"><span class="nm"><span class="dot ${it.p>0?'good':(Math.abs(it.p)>=.4?'risk':'bad')}"></span> ${it.nm}</span>
+     <span style="text-align:right"><span class="delta ${it.p>0?'up':(Math.abs(it.p)>=.4?'risk':'down')}">${it.p>0?'▲ +':'▼ '}${(it.p*100).toFixed(0)}%</span>
+     <div class="vs">${F[it.fmt](it.c)} vs ${F[it.fmt](it.b)}</div></span></div>`;
+  document.getElementById('qs').innerHTML=
+    `<div class="col"><div class="ch good">▲ Tailwinds — going well</div>${good.length?good.map(row).join(''):'<div class="emptyc">No metric up ≥15%</div>'}</div>`+
+    `<div class="col"><div class="ch bad">▼ Needs Attention</div>${bad.length?bad.map(row).join(''):'<div class="emptyc">No metric down ≥15%</div>'}</div>`;
+}
+
+function renderOverview(sessions,R,A){
+  const todayA=agg(inRange(sessions,R.today,R.today));
+  const mStart=monthStart(R.today), mtdSessions=inRange(sessions,mStart,R.today), mtdA=agg(mtdSessions);
+  const g=(loadGoals()[document.getElementById('proj').value])||{};
+  const gmvComp=g.gmv? mtdA.gmv/g.gmv*100:null, hrComp=g.hours? mtdA.hours/g.hours*100:null;
+  const cards=[
+    ['Today GMV',F.money(todayA.gmv),R.today,'hi'],
+    ['MTD GMV',F.money(mtdA.gmv),mStart+' → '+R.today,'hi'],
+    ['MTD GMV Completion',gmvComp==null?'—':gmvComp.toFixed(0)+'%',g.gmv?('goal $'+(+g.gmv).toLocaleString()):'no goal set','hi'],
+    ['MTD Hours',fmtDur(mtdA.hours*3600),mtdA.dcount+' days',''],
+    ['MTD Hours Completion',hrComp==null?'—':hrComp.toFixed(0)+'%',g.hours?('goal '+g.hours+'h'):'no goal set','hi'],
+    ['Total Ad Spend',A.hasAd?F.money(A.adSpend):'—','selected period',''],
+    ['Total ROI',A.roi==null?'—':A.roi.toFixed(2)+'x',A.hasAd?'GMV / Ad spend':'ad spend missing',''],
+    ['Period GMV',F.money(A.gmv),R.start+' → '+R.end,'']
+  ];
+  document.getElementById('overviewCards').innerHTML=cards.map(([k,v,s,c])=>`<div class="card ${c}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  const dates=[...new Set(mtdSessions.map(s=>s.date))].sort();
+  const gmvs=dates.map(d=>agg(inRange(mtdSessions,d,d)).gmv);
+  const hg=dates.map(d=>{ const x=agg(inRange(mtdSessions,d,d)); return x.hours?Math.round(x.gmv/x.hours):0; });
+  const lab=dates.map(d=>d.slice(5)), neon='#c7f53d';
+  mkChart('c_mtd_gmv',{type:'line',data:{labels:lab,datasets:[{data:gmvs,borderColor:neon,backgroundColor:'rgba(199,245,61,.12)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:neon}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},x:{grid:{color:GRID}}}}});
+  mkChart('c_mtd_hgmv',{type:'line',data:{labels:lab,datasets:[{data:hg,borderColor:'#d8ff5e',backgroundColor:'rgba(216,255,94,.10)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#d8ff5e'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:GRID},ticks:{callback:v=>'$'+v}},x:{grid:{color:GRID}}}}});
+}
+
+function renderFunnel(A,P){
+  // funnel of the 8 Avg metrics (top -> bottom), narrowing shape
+  const rows=[
+    {t:'Avg Hourly Impression',c:'Σ impression ÷ Σ hours',v:A.impPerHour,pv:P.impPerHour,fmt:'int'},
+    {t:'Avg Enter Room Rate',c:'Σ views ÷ Σ live impressions',v:A.avgErr,pv:P.avgErr,fmt:'pct'},
+    {t:'Avg Viewer',c:'mean concurrent viewers',v:A.avgViewer,pv:P.avgViewer,fmt:'n1'},
+    {t:'Avg CTR',c:'Σ product clicks ÷ Σ product impressions',v:A.avgCtr,pv:P.avgCtr,fmt:'pct'},
+    {t:'Avg CTOR',c:'Σ attributed orders ÷ Σ product clicks',v:A.avgCtor,pv:P.avgCtor,fmt:'pct'},
+    {t:'Avg AOV',c:'GMV ÷ orders',v:A.aov,pv:P.aov,fmt:'money2'},
+    {t:'Avg Hourly GMV',c:'Σ GMV ÷ Σ hours',v:A.hourlyGmv,pv:P.hourlyGmv,fmt:'money'},
+    {t:'Avg ROI',c:'GMV ÷ ad spend',v:A.roi,pv:P.roi,fmt:'x2'}
+  ];
+  const n=rows.length;
+  document.getElementById('funnel').innerHTML=rows.map((s,i)=>{
+    const w=(100-i*(44/(n-1))).toFixed(1);            // 100% -> 56%
+    const op=(0.22-i*0.022).toFixed(3);               // fade down
+    const val=s.v==null?'—':F[s.fmt](s.v);
+    return `<div class="fnl-row" style="width:${w}%;background:linear-gradient(90deg,rgba(199,245,61,${op}),rgba(199,245,61,0.012))">
+        <div class="l"><div class="t">${s.t}</div><div class="c">${s.c}</div></div>
+        <div class="r"><span class="val">${val}</span>${deltaBadge(s.v,s.pv)}</div></div>`+
+      (i<n-1?'<div class="fnl-arrow">▼</div>':'');
+  }).join('');
+}
+
+function prodTotals(ss){ const t={}; ss.forEach(s=>s.products.forEach(p=>{ if(p.g>0)t[p.n]=(t[p.n]||0)+p.g; })); return t; }
+function top5DayCount(ss){ const dates=[...new Set(ss.map(s=>s.date))]; const cnt={};
+  dates.forEach(d=>{ const dt={}; ss.filter(s=>s.date===d).forEach(s=>s.products.forEach(p=>{ if(p.g>0)dt[p.n]=(dt[p.n]||0)+p.g; }));
+    Object.entries(dt).sort((a,b)=>b[1]-a[1]).slice(0,5).forEach(([n])=>cnt[n]=(cnt[n]||0)+1); }); return cnt; }
+function renderProducts(sessions,R){
+  const inR=inRange(sessions,R.start,R.end), inP=inRange(sessions,R.pStart,R.pEnd);
+  const dates=[...new Set(inR.map(s=>s.date))].sort();
+  const totC=prodTotals(inR), totP=prodTotals(inP);
+  const totalGmv=Object.values(totC).reduce((a,b)=>a+b,0)||1;
+  const top3=Object.entries(totC).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  // Top-3 cards, each with its own GMV sparkline
+  document.getElementById('prodCards').innerHTML=top3.map(([n,g],i)=>
+    `<div class="pc"><div class="rk">Top ${i+1}</div><div class="nm">${n}</div><div class="g">$${Math.round(g).toLocaleString()}</div>
+     <div class="mini">${(g/totalGmv*100).toFixed(1)}% of period GMV · ${deltaBadge(g,totP[n])}</div>
+     <div class="spark"><canvas id="c_sp${i}"></canvas></div></div>`).join('')
+     || '<div class="emptyc">No product data in range.</div>';
+  top3.forEach(([n],i)=>{ const data=dates.map(d=>{ let g=0; inRange(inR,d,d).forEach(s=>s.products.forEach(p=>{ if(p.n===n)g+=p.g; })); return Math.round(g); });
+    mkChart('c_sp'+i,{type:'line',data:{labels:dates.map(d=>d.slice(5)),datasets:[{data,borderColor:'#c7f53d',backgroundColor:'rgba(199,245,61,.16)',fill:true,tension:.35,pointRadius:0,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callback:{}}},scales:{x:{display:false},y:{display:false}}}}); });
+  // classification vs prior period
+  const curDays=dates.length, priDays=[...new Set(inP.map(s=>s.date))].length;
+  const curCnt=top5DayCount(inR), priCnt=top5DayCount(inP);
+  const curQ=p=>(curCnt[p]||0)>curDays/2, priQ=p=>priDays>0&&(priCnt[p]||0)>priDays/2;
+  const names=new Set([...Object.keys(totC),...Object.keys(totP)]);
+  const hero=[],declining=[],potential=[];
+  names.forEach(p=>{ const cq=curQ(p),pq=priQ(p),c=totC[p]||0,pr=totP[p]||0;
+    if(cq&&pq){ const ch=pr?(c-pr)/pr:0; hero.push({p,c,pr,tag:ch>=0.15?'hot':(ch<=-0.15?'dec':'hero')}); }
+    else if(pq&&!cq){ declining.push({p,c,pr}); }
+    else if(cq&&!pq){ potential.push({p,c,pr}); } });
+  hero.sort((a,b)=>b.c-a.c); declining.sort((a,b)=>b.pr-a.pr); potential.sort((a,b)=>b.c-a.c);
+  const M=v=>'$'+Math.round(v).toLocaleString();
+  const tagTxt={hot:'HOT ▲',dec:'DECREASING ▼',hero:'HERO'};
+  const heroRows=hero.length?hero.map(h=>`<div class="clsrow"><span class="pn">${h.p}</span><span class="pv">${M(h.pr)} → ${M(h.c)}</span><span class="tg ${h.tag}">${tagTxt[h.tag]}</span></div>`).join(''):'<div class="emptyc">None</div>';
+  const potRows=potential.length?potential.map(h=>`<div class="clsrow"><span class="pn">${h.p}</span><span class="pv"><span class="arrowg">${M(h.pr)} → ${M(h.c)}</span></span></div>`).join(''):'<div class="emptyc">None</div>';
+  const decRows=declining.length?declining.map(h=>`<div class="clsrow"><span class="pn">${h.p}</span><span class="pv"><span class="arrowr">${M(h.pr)} → ${M(h.c)}</span></span></div>`).join(''):'<div class="emptyc">None</div>';
+  document.getElementById('prodClass').innerHTML=
+    `<div class="clsgrp clshero"><h4>★ Hero Products <span class="mini" style="text-transform:none;letter-spacing:0">in Top 5 &gt; half the days in BOTH periods · tagged HOT (+15%) / DECREASING (−15%)</span></h4>${heroRows}</div>`+
+    `<div class="clsgrp clspot"><h4>▲ High-Potential Products <span class="mini" style="text-transform:none;letter-spacing:0">newly qualifying in Top 5 this period</span></h4>${potRows}</div>`+
+    `<div class="clsgrp clsdec"><h4>▼ Declining Products <span class="mini" style="text-transform:none;letter-spacing:0">dropped out of Top 5 this period</span></h4>${decRows}</div>`;
+}
+
+function renderSourceFollow(sessions,today){
+  const start=addDays(today,-29), inR=inRange(sessions,start,today), dates=[...new Set(inR.map(s=>s.date))].sort();
+  const colors=['#c7f53d','#5ec8ff','#ff8a3d','#ff5a9e','#b18bff'];
+  const dsSrc=SRC5.map(([key,label],i)=>({label,data:dates.map(d=>{ const vals=inRange(inR,d,d).map(s=>s.source[key]).filter(v=>v!=null); return vals.length?+(mean(vals)*100).toFixed(2):null; }),borderColor:colors[i],backgroundColor:colors[i],tension:.3,spanGaps:true,pointRadius:2}));
+  mkChart('c_source',{type:'line',data:{labels:dates.map(d=>d.slice(5)),datasets:dsSrc},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:10}}}},scales:{y:{grid:{color:GRID},ticks:{callback:v=>v+'%'}},x:{grid:{color:GRID}}}}});
+  // follower mix — two stacked bar charts, day by day (follower vs non-follower)
+  function mix(id,fk,nk){
+    const days=dates.filter(d=>inRange(inR,d,d).some(s=>s.profile[fk]!=null));
+    const fol=days.map(d=>{ const v=inRange(inR,d,d).map(s=>s.profile[fk]).filter(x=>x!=null); return +(mean(v)*100).toFixed(1); });
+    const non=days.map(d=>{ const v=inRange(inR,d,d).map(s=>s.profile[nk]).filter(x=>x!=null); return +(mean(v)*100).toFixed(1); });
+    mkChart(id,{type:'bar',data:{labels:days.map(d=>d.slice(5)),datasets:[
+        {label:'Follower',data:fol,backgroundColor:'#c7f53d'},
+        {label:'Non-follower',data:non,backgroundColor:'#3a4526'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+'%'}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:GRID},ticks:{callback:v=>v+'%'},suggestedMax:100}}}});
+  }
+  mix('c_custmix','custF','custN'); mix('c_viewmix','viewF','viewN');
+}
+
+function renderDaily(sessions,today){
+  const mStart=monthStart(today);
+  const inR=inRange(sessions,mStart,today).filter(s=>s.dur>=3600);
+  const dates=[...new Set(inR.map(s=>s.date))].sort();
+  const cols=[['#','n',v=>v],['Duration','dur',F.dur],['GMV','gmv',F.money],['Hourly GMV','hourlyGmv',F.money],
+    ['Orders','orders',F.int],['AOV','aov',F.money2],['Viewer','viewersSum',F.int],['Impression','imp',F.int],['Hourly Imp','impPerHour',F.int],
+    ['Enter Rate','avgErr',F.pct],['CTR','avgCtr',F.pct],['CTOR','avgCtor',F.pct],
+    ['New Followers','newFollowers',F.int],['Likes','likes',F.int],['Shares','shares',F.int],
+    ['Ad Spend','adSpend',a=>a.hasAd?F.money(a.adSpend):'—'],['ROI','roi',a=>a.roi==null?'—':a.roi.toFixed(2)+'x'],['Avg View Dur','avgViewDur',a=>fmtSecShort(a.avgViewDur)]];
+  let html='<thead><tr><th>Date</th>'+cols.map(c=>`<th>${c[0]}</th>`).join('')+'</tr></thead><tbody>';
+  const rd=dates.map(d=>({d,a:agg(inRange(inR,d,d))}));
+  rd.forEach((r,i)=>{ const prev=i>0?rd[i-1].a:null;
+    html+=`<tr><td>${r.d}</td>`+cols.map(([lab,k,fmt])=>{
+      const raw = k==='dur'? r.a.hours*3600 : (k==='adSpend'? (r.a.hasAd?r.a.adSpend:null) : r.a[k]);
+      const disp = (k==='adSpend'||k==='roi'||k==='avgViewDur')? fmt(r.a) : fmt(raw);
+      let badge='';
+      if(prev&&k!=='n'&&raw!=null){ const pv = k==='dur'? prev.hours*3600 : (k==='adSpend'? (prev.hasAd?prev.adSpend:null) : prev[k]);
+        if(pv!=null&&pv!==0&&isFinite(pv)){ const p=(raw-pv)/Math.abs(pv); const cls=Math.abs(p)<0.001?'tflat':(p>0?'tup':'tdown'); badge=` <span class="d-badge ${cls}">${p>0?'▲':'▼'}${Math.abs(p*100).toFixed(0)}%</span>`; } }
+      return `<td>${disp}${badge}</td>`;
+    }).join('')+'</tr>';
+  });
+  document.getElementById('dailyTable').innerHTML=html+'</tbody>';
+}
+
+async function renderGoals(sessions,today){
+  const pid=document.getElementById('proj').value;
+  const gi=document.getElementById('goalGmv'), hi=document.getElementById('goalHours'), sv=document.getElementById('saveGoals'), ln=document.getElementById('lockNote');
+  const goal=await getGoal(pid, today.slice(0,7));
+  const gGmv=goal?goal.gmvGoal:null, gHours=goal?goal.hoursGoal:null, savedLock=goal?goal.locked:false;
+  gi.value=gGmv||''; hi.value=gHours||'';
+  const canEdit = !ONLINE() || canUpload(pid) || (SESSION&&SESSION.role==='admin');
+  const lock = savedLock || !canEdit;
+  gi.disabled=lock; hi.disabled=lock; sv.style.display=lock?'none':'inline-block'; ln.style.display=lock?'block':'none';
+  const mStart=monthStart(today), mtd=agg(inRange(sessions,mStart,today));
+  if(gGmv){ const pct=Math.min(mtd.gmv/gGmv*100,100); document.getElementById('gmvBar').style.width=pct+'%';
+    document.getElementById('gmvProg').innerHTML=`MTD $${Math.round(mtd.gmv).toLocaleString()} / $${(+gGmv).toLocaleString()} · <b>${(mtd.gmv/gGmv*100).toFixed(0)}%</b>`; }
+  else{ document.getElementById('gmvBar').style.width='0%'; document.getElementById('gmvProg').textContent='No goal set'; }
+  if(gHours){ const hp=Math.min(mtd.hours/gHours*100,100); document.getElementById('hrBar').style.width=hp+'%';
+    document.getElementById('hrProg').innerHTML=`MTD ${mtd.hours.toFixed(1)}h / ${gHours}h · <b>${(mtd.hours/gHours*100).toFixed(0)}%</b>`; }
+  else{ document.getElementById('hrBar').style.width='0%'; document.getElementById('hrProg').textContent='No goal set'; }
+}
+
+/* ================= toast ================= */
+let tT; function toast(h){ const t=document.getElementById('toast'); t.innerHTML=h; t.classList.add('show'); clearTimeout(tT); tT=setTimeout(()=>t.classList.remove('show'),5000); }
+
+/* ================= events ================= */
+const drop=document.getElementById('drop'),file=document.getElementById('file');
+drop.onclick=()=>file.click(); file.onchange=e=>{ if(e.target.files.length)stageFiles([...e.target.files]); file.value=''; };
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hot')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hot')}));
+drop.addEventListener('drop',e=>{ const fs=[...e.dataTransfer.files].filter(f=>f.name.endsWith('.xlsx')); if(fs.length)stageFiles(fs); });
+document.getElementById('commit').onclick=commitPending;
+document.getElementById('clearPending').onclick=()=>{ PENDING=[]; renderPending(); };
+document.getElementById('proj').onchange=render;
+let FP=null;
+function isoLocal(d){ const z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); }
+function initFP(){ if(FP||!window.flatpickr)return; FP=flatpickr('#cRange',{mode:'range',dateFormat:'Y-m-d',
+  onChange:(sel)=>{ if(sel.length===2){ RANGE.start=isoLocal(sel[0]); RANGE.end=isoLocal(sel[1]); render(); } } }); }
+document.getElementById('rangeSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  document.getElementById('rangeSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  RANGE.mode=b.dataset.r; document.getElementById('customRange').style.display=b.dataset.r==='custom'?'inline-flex':'none';
+  if(b.dataset.r==='custom') initFP(); else render(); });
+document.getElementById('applyCustom').onclick=()=>{ const s=FP&&FP.selectedDates; if(s&&s.length===2){ RANGE.start=isoLocal(s[0]); RANGE.end=isoLocal(s[1]); render(); } };
+document.getElementById('saveGoals').onclick=async ()=>{ const pid=document.getElementById('proj').value;
+  const gmv=num(document.getElementById('goalGmv').value)||null, hours=num(document.getElementById('goalHours').value)||null;
+  if(!gmv||!hours){ toast('Enter both Monthly GMV Goal and Monthly Live Hours Goal before saving.'); return; }
+  if(!confirm('Save goals? Once saved they are locked on the frontend and can only be changed via the backend.'))return;
+  if(ONLINE()){ try{ await api('/goals',{method:'POST',body:JSON.stringify({projectId:pid,gmvGoal:gmv,hoursGoal:hours,month:realToday().slice(0,7)})}); toast('Goals saved and locked.'); render(); }catch(e){ toast('Save failed: '+e.message); } return; }
+  const g=loadGoals(); g[pid]={gmv,hours,locked:true}; saveGoals(g); toast('Goals saved and locked.'); render(); };
+document.getElementById('adminBtn').onclick=openAdmin;
+document.getElementById('exp').onclick=()=>{ const b=new Blob([JSON.stringify(loadDB())],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='live_db_'+realToday()+'.json'; a.click(); };
+document.getElementById('imp').onclick=()=>document.getElementById('impf').click();
+document.getElementById('impf').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; try{ const d=JSON.parse(await f.text()); const db=loadDB(); let n=0; Object.values(d.sessions).forEach(s=>{ if(!db.sessions[s.room]){db.sessions[s.room]=s;n++;} }); saveDB(db); toast('Imported '+n+' session(s)'); render(); }catch(err){ toast('Import failed: '+err.message); } e.target.value=''; };
+document.getElementById('clr').onclick=()=>{ if(confirm('Clear the local database? This also clears saved goals.')){ localStorage.removeItem(DB_KEY); localStorage.removeItem(GOAL_KEY); render(); toast('Cleared'); } };
+
+/* ================= init ================= */
+boot();
+</script>
+</body>
+</html>
