@@ -177,7 +177,12 @@ body.online .offline-only{display:none!important}
 
   <!-- Admin panel (admins only) -->
   <div id="adminPanel" class="panel" style="display:none;margin-top:14px">
-    <div class="sec-h" style="margin-bottom:10px"><h2>Admin — User Access</h2><span class="hint">Set which projects each person can view / upload to</span></div>
+    <div class="sec-h" style="margin-bottom:10px"><h2>Admin — User Access</h2><span class="hint">Add teammates by email or wait for them to log in once, then set their view / upload projects</span></div>
+    <div id="adminAdd" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <input id="newUserEmail" placeholder="teammate@nb-agency.live" style="width:250px"/>
+      <button class="btn sm primary" id="addUserBtn">Add user</button>
+      <span class="mini">Creates the person with no access yet — grant projects below.</span>
+    </div>
     <div id="adminUsers"></div>
   </div>
 
@@ -318,7 +323,7 @@ function saveGoals(g){ localStorage.setItem(GOAL_KEY,JSON.stringify(g)); }
    Fill WORKER_URL after deploying the Worker. Blank = local prototype mode
    (seed + localStorage, current behaviour). */
 const CONFIG = {
-  WORKER_URL: 'https://live-dashboard.yw924.workers.dev',   // Worker deployed on Cloudflare (no trailing slash)
+  WORKER_URL: 'https://live-dashboard.yw924.workers.dev',   // Cloudflare Worker (no trailing slash)
   LARK_APP_ID: 'cli_aacc98f79a385ee6',
 };
 const ONLINE = () => !!CONFIG.WORKER_URL;
@@ -349,10 +354,38 @@ async function getGoal(pid,month){
 /* ---- Lark login gate ---- */
 function showGate(msg){ const g=document.getElementById('gate'); if(g){ g.style.display='flex'; document.getElementById('gateMsg').innerHTML=msg; } }
 function hideGate(){ const g=document.getElementById('gate'); if(g) g.style.display='none'; }
+function sdkDiag(){
+  var hasH5 = (typeof window.h5sdk !== 'undefined') && !!window.h5sdk;
+  var hasTT = (typeof window.tt !== 'undefined') && !!window.tt;
+  var ua = navigator.userAgent || '';
+  var inLark = /Lark|Feishu/i.test(ua);
+  return { hasH5:hasH5, hasTT:hasTT, inLark:inLark, ua:ua };
+}
 async function boot(){
   if(!ONLINE()){ seedIfEmpty(); render(); return; }
   document.body.classList.add('online');
-  if(!window.h5sdk){ showGate('请在 <b>Lark 工作台</b> 内打开本应用。<br><span class="mini">This app must be opened inside the Lark workplace.</span>'); return; }
+
+  // 等待 SDK 脚本加载(最多约 5 秒),它有时比页面晚就绪
+  var waited = 0;
+  while(!window.h5sdk && waited < 5000){ await new Promise(r=>setTimeout(r,250)); waited += 250; }
+
+  if(!window.h5sdk){
+    var d = sdkDiag();
+    var reason = d.inLark
+      ? 'SDK 脚本未能注入 h5sdk。多为 <b>H5 可信域名</b> 未配置或未发布生效。'
+      : '当前不在 Lark 客户端内(UA 未识别为 Lark)。请从 <b>Lark 工作台</b> 点开本应用,而非普通浏览器。';
+    showGate(
+      '无法初始化 Lark 登录。<br><span class="mini">Cannot initialize Lark login.</span>'+
+      '<br><br><span class="mini" style="text-align:left;display:inline-block;line-height:1.6">'+
+      '诊断:<br>'+
+      '· 在 Lark 内(UA): <b>'+(d.inLark?'是':'否')+'</b><br>'+
+      '· h5sdk 已加载: <b>'+(d.hasH5?'是':'否')+'</b><br>'+
+      '· tt 对象: <b>'+(d.hasTT?'是':'否')+'</b><br>'+
+      '· 原因推断: '+reason+
+      '</span>'
+    );
+    return;
+  }
   showGate('Signing in with Lark…');
   window.h5sdk.ready(()=>{
     tt.requestAuthCode({ appId: CONFIG.LARK_APP_ID,
@@ -372,27 +405,36 @@ async function boot(){
   window.h5sdk.error && window.h5sdk.error(()=>showGate('Lark JSSDK 加载错误,请在 Lark 内重试。'));
 }
 /* ---- admin panel ---- */
-async function openAdmin(){
-  const panel=document.getElementById('adminPanel'); panel.style.display=panel.style.display==='block'?'none':'block';
-  if(panel.style.display!=='block')return;
+async function loadAdmin(){
   try{ const [pu,pp]=await Promise.all([api('/admin/users'),api('/admin/projects')]);
     ADMIN_PROJECTS=pp.projects||[]; renderAdminUsers(pu.users||[]);
-  }catch(e){ toast('加载失败:'+e.message); }
+  }catch(e){ toast('Load failed: '+e.message); }
 }
+function openAdmin(){ const panel=document.getElementById('adminPanel'); const show=panel.style.display!=='block'; panel.style.display=show?'block':'none'; if(show) loadAdmin(); }
 function renderAdminUsers(users){
   const box=document.getElementById('adminUsers');
-  const chips=(sel)=> sel==='*' ? '<span class="chip on">ALL</span>'
-    : ADMIN_PROJECTS.map(p=>{ const on=(sel||'').split(',').map(x=>x.trim()).includes(p.projectId); return `<label class="chip"><input type="checkbox" value="${p.projectId}" ${on?'checked':''}> ${p.name}</label>`; }).join('');
+  const chips=(sel)=>{ const all=sel==='*'; const cur=all?[]:(Array.isArray(sel)?sel:(sel||'').split(',').map(x=>x.trim()));
+    let h=`<label class="chip ${all?'on':''}"><input type="checkbox" class="allck" ${all?'checked':''}> ALL</label>`;
+    h+=ADMIN_PROJECTS.map(p=>{ const on=!all&&cur.includes(p.projectId); return `<label class="chip ${on?'on':''}"><input type="checkbox" value="${p.projectId}" ${on?'checked':''}> ${p.name}</label>`; }).join('');
+    return h; };
   box.innerHTML=users.map(u=>`<div class="arow" data-email="${u.email}">
-      <div class="ae">${u.email} <span class="mini">(${u.role})</span></div>
-      <div class="acell"><div class="mini">View</div><div class="chips view">${chips(u.viewProjects)}</div></div>
-      <div class="acell"><div class="mini">Upload</div><div class="chips upload">${chips(u.uploadProjects)}</div></div>
-      <button class="btn sm asave">Save</button></div>`).join('') || '<div class="emptyc">No users yet — they appear here after first login.</div>';
+      <div class="ae">${u.email}
+        <select class="arole" style="margin-top:5px"><option value="member" ${u.role!=='admin'?'selected':''}>member</option><option value="admin" ${u.role==='admin'?'selected':''}>admin</option></select></div>
+      <div class="acell"><div class="mini">View projects</div><div class="chips view">${chips(u.viewProjects)}</div></div>
+      <div class="acell"><div class="mini">Upload projects</div><div class="chips upload">${chips(u.uploadProjects)}</div></div>
+      <button class="btn sm primary asave">Save</button></div>`).join('') || '<div class="emptyc">No users yet — add one above, or they appear here after first login.</div>';
+  // ALL checkbox toggles the group; any project check unchecks ALL; visual .on sync
+  box.querySelectorAll('.chips').forEach(grp=>{ grp.addEventListener('change',e=>{
+    const all=grp.querySelector('.allck');
+    if(e.target.classList.contains('allck')&&e.target.checked){ grp.querySelectorAll('input:not(.allck)').forEach(i=>i.checked=false); }
+    else if(!e.target.classList.contains('allck')&&e.target.checked){ all.checked=false; }
+    grp.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on', c.querySelector('input').checked));
+  }); });
   box.querySelectorAll('.asave').forEach(b=>b.onclick=async e=>{
-    const row=e.target.closest('.arow'), email=row.dataset.email;
-    const view=[...row.querySelectorAll('.view input:checked')].map(x=>x.value);
-    const upload=[...row.querySelectorAll('.upload input:checked')].map(x=>x.value);
-    try{ await api('/admin/user',{method:'POST',body:JSON.stringify({email,role:'member',viewProjects:view,uploadProjects:upload})}); toast('Saved '+email); Object.keys(_sessCache).forEach(k=>delete _sessCache[k]); }
+    const row=e.target.closest('.arow'), email=row.dataset.email, role=row.querySelector('.arole').value;
+    const grab=cls=>{ const g=row.querySelector('.'+cls); return g.querySelector('.allck').checked?'*':[...g.querySelectorAll('input:not(.allck):checked')].map(x=>x.value); };
+    try{ await api('/admin/user',{method:'POST',body:JSON.stringify({email,role,viewProjects:grab('view'),uploadProjects:grab('upload')})});
+      toast('Saved '+email); Object.keys(_sessCache).forEach(k=>delete _sessCache[k]); }
     catch(err){ toast('Save failed: '+err.message); }
   });
 }
@@ -757,6 +799,10 @@ document.getElementById('saveGoals').onclick=async ()=>{ const pid=document.getE
   if(ONLINE()){ try{ await api('/goals',{method:'POST',body:JSON.stringify({projectId:pid,gmvGoal:gmv,hoursGoal:hours,month:realToday().slice(0,7)})}); toast('Goals saved and locked.'); render(); }catch(e){ toast('Save failed: '+e.message); } return; }
   const g=loadGoals(); g[pid]={gmv,hours,locked:true}; saveGoals(g); toast('Goals saved and locked.'); render(); };
 document.getElementById('adminBtn').onclick=openAdmin;
+document.getElementById('addUserBtn').onclick=async ()=>{ const el=document.getElementById('newUserEmail'); const email=(el.value||'').trim().toLowerCase();
+  if(!email||email.indexOf('@')<0){ toast('Enter a valid email'); return; }
+  try{ await api('/admin/user',{method:'POST',body:JSON.stringify({email,role:'member',viewProjects:[],uploadProjects:[]})}); el.value=''; toast('Added '+email); loadAdmin(); }
+  catch(e){ toast('Add failed: '+e.message); } };
 document.getElementById('exp').onclick=()=>{ const b=new Blob([JSON.stringify(loadDB())],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='live_db_'+realToday()+'.json'; a.click(); };
 document.getElementById('imp').onclick=()=>document.getElementById('impf').click();
 document.getElementById('impf').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; try{ const d=JSON.parse(await f.text()); const db=loadDB(); let n=0; Object.values(d.sessions).forEach(s=>{ if(!db.sessions[s.room]){db.sessions[s.room]=s;n++;} }); saveDB(db); toast('Imported '+n+' session(s)'); render(); }catch(err){ toast('Import failed: '+err.message); } e.target.value=''; };
