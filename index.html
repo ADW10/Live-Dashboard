@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/dark.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <!-- Lark (international) H5 JSSDK — only used in online mode. Verify the exact version URL in the Lark developer docs if login fails. -->
-<script src="https://lf-scm-cdn.larksuite.com/lark/op/h5-js-sdk-1.5.34.js"></script>
+<!-- Lark H5 JSSDK is loaded dynamically at runtime (see boot()) with multiple CDN fallbacks. -->
 <style>
 :root{
   --bg:#000000; --panel:#0c0e0a; --panel2:#121509; --line:#22271a;
@@ -361,27 +361,51 @@ function sdkDiag(){
   var inLark = /Lark|Feishu/i.test(ua);
   return { hasH5:hasH5, hasTT:hasTT, inLark:inLark, ua:ua };
 }
+/* ---- 动态加载 Lark H5 SDK:依次尝试多个候选地址 ---- */
+var SDK_CANDIDATES = [
+  'https://lf16-oversea.goofy-cdn.com/goofy-va/lark/op/h5-js-sdk-1.5.34.js',
+  'https://lf16-oversea.goofy-cdn.com/goofy-va/lark/op/h5-js-sdk-1.5.26.js',
+  'https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.34.js',
+  'https://lf-scm-cdn.larksuite.com/lark/op/h5-js-sdk-1.5.34.js',
+  'https://sf16-va.larksuitecdn.com/obj/lark-static-va/lark/op/h5-js-sdk-1.5.34.js'
+];
+function loadScript(src){
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src=src; s.async=false;
+    s.onload=function(){ resolve(src); };
+    s.onerror=function(){ reject(src); };
+    document.head.appendChild(s);
+  });
+}
+async function loadLarkSDK(){
+  var tried=[];
+  for(var i=0;i<SDK_CANDIDATES.length;i++){
+    try{
+      await loadScript(SDK_CANDIDATES[i]);
+      // 给它一点时间注入
+      var w=0; while(!window.h5sdk && w<1500){ await new Promise(r=>setTimeout(r,150)); w+=150; }
+      tried.push('✓ '+SDK_CANDIDATES[i]);
+      if(window.h5sdk) return {ok:true, tried:tried};
+    }catch(e){ tried.push('✗ '+SDK_CANDIDATES[i]); }
+  }
+  return {ok:false, tried:tried};
+}
 async function boot(){
   if(!ONLINE()){ seedIfEmpty(); render(); return; }
   document.body.classList.add('online');
+  showGate('Loading Lark SDK…');
 
-  // 等待 SDK 脚本加载(最多约 5 秒),它有时比页面晚就绪
-  var waited = 0;
-  while(!window.h5sdk && waited < 5000){ await new Promise(r=>setTimeout(r,250)); waited += 250; }
+  var r = await loadLarkSDK();
 
   if(!window.h5sdk){
     var d = sdkDiag();
-    var reason = d.inLark
-      ? 'SDK 脚本未能注入 h5sdk。多为 <b>H5 可信域名</b> 未配置或未发布生效。'
-      : '当前不在 Lark 客户端内(UA 未识别为 Lark)。请从 <b>Lark 工作台</b> 点开本应用,而非普通浏览器。';
     showGate(
-      '无法初始化 Lark 登录。<br><span class="mini">Cannot initialize Lark login.</span>'+
-      '<br><br><span class="mini" style="text-align:left;display:inline-block;line-height:1.6">'+
-      '诊断:<br>'+
+      '无法加载 Lark SDK。<br><span class="mini">Cannot load Lark SDK.</span>'+
+      '<br><br><span class="mini" style="text-align:left;display:inline-block;line-height:1.7">'+
       '· 在 Lark 内(UA): <b>'+(d.inLark?'是':'否')+'</b><br>'+
-      '· h5sdk 已加载: <b>'+(d.hasH5?'是':'否')+'</b><br>'+
-      '· tt 对象: <b>'+(d.hasTT?'是':'否')+'</b><br>'+
-      '· 原因推断: '+reason+
+      '· h5sdk: <b>'+(d.hasH5?'是':'否')+'</b> · tt: <b>'+(d.hasTT?'是':'否')+'</b><br>'+
+      '· 尝试的地址:<br>'+ r.tried.join('<br>')+
       '</span>'
     );
     return;
