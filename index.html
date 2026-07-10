@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/dark.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <!-- Lark (international) H5 JSSDK — only used in online mode. Verify the exact version URL in the Lark developer docs if login fails. -->
-<script src="https://lf-scm-cdn.larksuite.com/lark/op/h5-js-sdk-1.5.34.js"></script>
+<!-- Lark H5 JSSDK loaded dynamically at runtime with multi-CDN fallback (see boot()). -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
@@ -434,7 +434,7 @@ function saveGoals(g){ localStorage.setItem(GOAL_KEY,JSON.stringify(g)); }
    Fill WORKER_URL after deploying the Worker. Blank = local prototype mode
    (seed + localStorage, current behaviour). */
 const CONFIG = {
-  WORKER_URL: '',                        // e.g. 'https://live-dashboard.xxx.workers.dev'  (no trailing slash)
+  WORKER_URL: 'https://live-dashboard.yw924.workers.dev',   // Cloudflare Worker (no trailing slash)
   LARK_APP_ID: 'cli_aacc98f79a385ee6',
 };
 const ONLINE = () => !!CONFIG.WORKER_URL;
@@ -466,10 +466,36 @@ async function getGoal(pid,month){
 /* ---- Lark login gate ---- */
 function showGate(msg){ const g=document.getElementById('gate'); if(g){ g.style.display='flex'; document.getElementById('gateMsg').innerHTML=msg; } }
 function hideGate(){ const g=document.getElementById('gate'); if(g) g.style.display='none'; }
+var SDK_CANDIDATES = [
+  'https://lf16-oversea.goofy-cdn.com/goofy-va/lark/op/h5-js-sdk-1.5.34.js',
+  'https://lf16-oversea.goofy-cdn.com/goofy-va/lark/op/h5-js-sdk-1.5.26.js',
+  'https://lf1-cdn-tos.bytegoofy.com/goofy/lark/op/h5-js-sdk-1.5.34.js',
+  'https://lf-scm-cdn.larksuite.com/lark/op/h5-js-sdk-1.5.34.js',
+  'https://sf16-va.larksuitecdn.com/obj/lark-static-va/lark/op/h5-js-sdk-1.5.34.js'
+];
+function loadScript(src){
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script'); s.src=src; s.async=false;
+    s.onload=function(){ resolve(src); }; s.onerror=function(){ reject(src); };
+    document.head.appendChild(s);
+  });
+}
+async function loadLarkSDK(){
+  for(var i=0;i<SDK_CANDIDATES.length;i++){
+    try{
+      await loadScript(SDK_CANDIDATES[i]);
+      var w=0; while(!window.h5sdk && w<1500){ await new Promise(r=>setTimeout(r,150)); w+=150; }
+      if(window.h5sdk) return true;
+    }catch(e){}
+  }
+  return false;
+}
 async function boot(){
   if(!ONLINE()){ seedIfEmpty(); render(); return; }
   document.body.classList.add('online');
   localStorage.removeItem(DB_KEY);   // purge any stale local seed from earlier offline preview — online uses Lark only
+  showGate('Loading Lark SDK…');
+  await loadLarkSDK();
   if(!window.h5sdk){ showGate('Please open this app inside the <b>Lark workplace</b>.<br><span class="mini">This dashboard only runs inside Lark.</span>'); return; }
   showGate('Signing in with Lark…');
   window.h5sdk.ready(()=>{
