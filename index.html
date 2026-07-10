@@ -690,7 +690,7 @@ async function render(){
   sel.innerHTML=projects.map(p=>`<option value="${p.projectId}">${p.name}</option>`).join('');
   if(projects.some(p=>p.projectId===cur))sel.value=cur;
   document.getElementById('dbstat').textContent = ONLINE()
-    ? (SESSION? (SESSION.email+' · '+SESSION.role) : '')
+    ? (SESSION? (SESSION.email+' · '+SESSION.role+' · '+projects.length+' project(s)') : '')
     : (projects.length+' project(s) · '+Object.keys(loadDB().sessions).length+' sessions');
   if(!projects.length){ document.getElementById('overviewCards').innerHTML='<div class="emptyc">No projects visible to you yet.</div>'; return; }
   const pid=sel.value||projects[0].projectId; sel.value=pid;
@@ -1150,6 +1150,7 @@ async function renderMgmt(){
   document.getElementById('mCards').innerHTML=
     card("Today's GMV",F.money(T.today),today)+
     card('MTD Total GMV',F.money(T.mtdGmv),mStart+' → '+today)+
+    card('MTD Avg Hourly GMV',F.money(T.mtdHours? T.mtdGmv/T.mtdHours : 0),'MTD GMV ÷ MTD hours')+
     card('MTD Goal Completion',gmvComp==null?'—':gmvComp.toFixed(0)+'%',T.goalGmv?('goal '+F.money(T.goalGmv)):'no goals set')+
     card('GMV Growth',growth==null?'—':(growth>0?'+':'')+growth.toFixed(1)+'%','vs prior same period')+
     card('MTD Total Live Duration',fmtDur(T.mtdHours*3600),rows.length+' projects')+
